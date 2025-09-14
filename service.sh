@@ -4,7 +4,7 @@ MODPATH="$MODDIR"
 MODID=$(basename "$MODDIR")
 STATUS_FILE="$MODPATH/status.txt"
 BIN_DIR="$MODPATH/bin"
-FILEWATCH_BIN="$BIN_DIR/filewatch-${MODID}"
+FILEWATCH_BIN="$BIN_DIR/filewatcher-${MODID}"
 # 设置初始状态为"运行中"
 echo "RUNNING" >"$STATUS_FILE"
 
@@ -25,8 +25,8 @@ else
     start_script
     set_log_file "service"
 fi
-if [ ! -f "$MODPATH/bin/filewatch-${MODID}" ]; then
-    log_warn "$FILE_NOT_FOUND: $MODPATH/bin/filewatch-${MODID}"
+if [ ! -f "$MODPATH/bin/filewatcher-${MODID}" ]; then
+    log_warn "$FILE_NOT_FOUND: $MODPATH/bin/filewatcher-${MODID}"
 fi
 # 定义状态更新函数
 update_status() {
@@ -47,23 +47,13 @@ enter_pause_mode() {
     log_info "${SERVICE_PAUSED:-已进入暂停模式，监控文件}: $1"
     # 检查参数数量
     if [ -f "$FILEWATCH_BIN" ]; then
-        if [ "$#" -eq 2 ]; then
-            # 如果是两个参数，第二个参数是脚本路径
-            log_debug "Use Script: $2"
-            "$FILEWATCH_BIN" -s "$STATUS_FILE" "$1" "$2"
-        elif [ "$#" -eq 3 ] && [ "$2" = "-c" ]; then
-            # 如果是三个参数且第二个是-c，第三个参数是shell命令
-            log_debug "shell: $3"
-            if [ -f "$FILEWATCH_BIN" ]; then
-                "$FILEWATCH_BIN" -s "$STATUS_FILE" -c "$3" "$1"
-            fi
-        else
-            log_error "enter_pause_mode的参数无效"
-            update_status "ERROR"
-        fi
+            log_debug "开始检测"
+            "$FILEWATCH_BIN" -o "$1" "echo true"
+            return $?
     else
         log_error "$FILEWATCH_BIN $SERVICE_FILE_NOT_FOUND"
         update_status "ERROR"
+        return -1
     fi
 }
 

@@ -1,11 +1,11 @@
 #!/system/bin/sh
-action_id="Module_ID"
-action_name="Module Name"
-action_author="Module Author"
-action_description="Module Description"
+action_id="0zram"
+action_name="Zram WebUI"
+action_author="BrokeStar"
+action_description="A web UI for Zram"
 
-Github_update_repo="your_name/your_repo"
-updateJson="httpURL"
+Github_update_repo="brokestar233\/Zram_WebUI"
+updateJson=""
 
 magisk_min_version="25400"             # Minimum required version of Magisk
 ksu_min_version="11300"                # Minimum compatible version of KernelSU

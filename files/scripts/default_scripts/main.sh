@@ -438,3 +438,8 @@ list_select() {
         esac
     done
 }
+
+reload_config() {
+    log_info "正在重新加载配置文件"
+    . "$MODPATH/module_settings/config.sh"
+}

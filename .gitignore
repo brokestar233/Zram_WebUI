@@ -1,0 +1,97 @@
+# Build directories
+build/
+build-*/
+*.build/
+
+# CMake generated files
+CMakeCache.txt
+CMakeFiles/
+CMakeScripts/
+install_manifest.txt
+compile_commands.json
+CTestTestfile.cmake
+_deps/
+
+# Executables
+*.exe
+*.out
+*.app
+
+# Object files
+*.o
+*.obj
+*.so
+*.dylib
+*.dll
+*.a
+*.lib
+
+# Debug files
+*.dSYM/
+*.su
+*.idb
+*.pdb
+
+# Log files
+*.log
+*.log.*
+
+# Test artifacts
+test_data/
+*_test/
+*.csv
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Android specific
+*.apk
+*.ap_
+*.dex
+*.class
+local.properties
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+*.backup
+
+# Package files
+*.tar.gz
+*.zip
+*.7z
+*.rar
+
+# Core dumps
+core
+core.*
+vgcore.*
+
+# Profiling data
+*.prof
+*.gcda
+*.gcno
+*.gcov
+
+# Static analysis
+*.sarif
+*.xml
+
+# Documentation build
+docs/_build/
+docs/html/
+docs/latex/
