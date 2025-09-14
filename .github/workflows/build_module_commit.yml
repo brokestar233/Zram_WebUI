@@ -1,0 +1,49 @@
+name: Commit Build module
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  compress:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # 设置为 0 以获取所有标签历史
+
+      - name: Get current time
+        run: |
+          random_number=$((RANDOM % 100))
+          timestamp_with_random="$(date +'%Y%m%d')${random_number}"
+          echo "$timestamp_with_random" > current_time.txt
+
+      - name: Get latest tag
+        id: latest-tag
+        run: |
+          LATEST_TAG=$(git describe --tags $(git rev-list --tags --max-count=1))
+          echo "$LATEST_TAG" > latest_tag.txt
+
+      - name: Set short SHA
+        run: echo "SHORT_SHA=${GITHUB_SHA::7}" >> $GITHUB_ENV
+
+      - name: Setup Android NDK
+        uses: nttld/setup-ndk@v1
+        id: setup-ndk
+        with:
+          ndk-version: r26d
+
+      - name: Start Build
+        run: |
+          . module_settings/config.sh
+          LATEST_TAG=$(cat latest_tag.txt)
+          CURRENT_TIME=$(cat current_time.txt)
+          . build_for_GITHUBACTION.sh
+
+      - name: Upload zip files as artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ github.event.repository.name }}_${{ env.SHORT_SHA }}
+          path: |
+            *

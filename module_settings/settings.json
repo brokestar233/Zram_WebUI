@@ -1,0 +1,48 @@
+{
+  "excluded": [
+    "magisk_min_version",
+    "ksu_min_version",
+    "ksu_min_kernel_version",
+    "apatch_min_version",
+    "ANDROID_API",
+    "TEST_*",
+    "action_*"
+  ],
+  "descriptions": {
+    "print_languages": {
+      "en": "Default language for printing",
+      "zh": "默认显示语言",
+      "ru": "Язык отображения по умолчанию"
+    }
+  },
+  "options": {
+    "print_languages": {
+      "options": [
+        {
+          "value": "en",
+          "label": {
+            "en": "English",
+            "zh": "英文",
+            "ru": "Английский"
+          }
+        },
+        {
+          "value": "zh",
+          "label": {
+            "en": "Chinese",
+            "zh": "中文",
+            "ru": "Китайский"
+          }
+        },
+        {
+          "value": "ru",
+          "label": {
+            "en": "Russian",
+            "zh": "俄文",
+            "ru": "Русский"
+          }
+        }
+      ]
+    }
+  }
+}

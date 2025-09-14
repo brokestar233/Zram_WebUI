@@ -1,0 +1,47 @@
+/**
+ * AMMF WebUI 日志页面样式
+ * 基于MD3设计系统优化
+ */
+
+ .logs-container {
+    padding: var(--spacing-xs);
+    height: calc(100vh - var(--header-height) - var(--spacing-s));
+    display: flex;
+    flex-direction: column;
+    position: relative;
+}
+.logs-scroll-container {
+    overflow-y: auto;
+    height: 100%;
+}
+
+.virtual-scroll-container {
+    position: relative;
+    width: 100%;
+}
+
+.log-line {
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    width: 100%;
+    padding: var(--spacing-xs) var(--spacing-m);
+    box-sizing: border-box;
+    border-left: 3px solid transparent;
+    line-height: 1.4;
+    font-size: 14px;
+}
+.log-line.error { border-left-color: var(--error); }
+.log-line.warn { border-left-color: var(--secondary); }
+.log-line.info { border-left-color: var(--primary); }
+.log-line.debug { border-left-color: var(--on-surface-variant); }
+
+.empty-state {
+    text-align: center;
+    padding: var(--spacing-m);
+    color: var(--on-surface-variant);
+}
+
+.logs-content.loading {
+    opacity: 0.6;
+    pointer-events: none;
+}
