@@ -61,6 +61,13 @@ const Core = {
         } else {
             callback();
         }
+    },
+    // 检查是否为 WebUIX
+    isWebUIX() {
+        const userAgent = navigator.userAgent;
+        const isWebUIX = /(SukiSU-Ultra|WebUI X)/.test(userAgent);
+        logToConsole(`User agent: ${userAgent}, isWebUIX: ${isWebUIX}`);
+        return isWebUIX;
     }
 };
 

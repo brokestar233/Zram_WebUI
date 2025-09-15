@@ -199,6 +199,7 @@ main() {
     rm -rf src
     rm -rf docs
     rm build_for_GITHUBACTION.sh
+    rm *.zip
     package_module "$version"
     log_info "Build completed successfully!"
     if [ "$restart_ovo" -eq 1 ]; then

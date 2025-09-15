@@ -553,6 +553,37 @@ const StatusPage = {
     async getRootImplementation() {
         try {
             let rootInfo = [];
+            const userAgent = navigator.userAgent;
+
+            if (Core.isWebUIX()) { 
+                // 解析WebUI X的User-Agent中的Root信息
+                // 示例: SukiSU-Ultra /13346 (Linux; Android 15; PJZ110; KsuNext/13345)
+                // 示例: WebUI X/325 (Linux; Android 15; PJZ110; SukiSU/13345)
+                
+                // 首先检查是否为SukiSU-Ultra
+                if (userAgent.includes('SukiSU-Ultra')) {
+                    const versionMatch = userAgent.match(/SukiSU-Ultra [/](\d+)/);
+                    if (versionMatch) {
+                        rootInfo.push(`SukiSU-Ultra ${versionMatch[1]}`);
+                    } else {
+                        rootInfo.push('SukiSU-Ultra');
+                    }
+                } 
+                // 检查其他Root实现 (但排除KsuNext中的KernelSU)
+                else {
+                    const rootMatches = userAgent.match(/(Magisk|KernelSU|KsuNext|APatch|SukiSU)\/(\d+)/);
+                    if (rootMatches) {
+                        // 处理KsuNext特殊情况
+                        if (rootMatches[1] === 'KsuNext') {
+                            rootInfo.push(`KernelSU ${rootMatches[2]}`);
+                        } else {
+                            const rootType = rootMatches[1];
+                            const rootVersion = rootMatches[2];
+                            rootInfo.push(`${rootType} ${rootVersion}`);
+                        }
+                    }
+                }
+            }
 
             // 检查Magisk
             try {
