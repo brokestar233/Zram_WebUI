@@ -221,8 +221,8 @@ zram_setup() {
             log_info "设置 zram0 磁盘大小为 auto"
             echo "$size" > /sys/block/zram0/disksize || log_error "设置disksize失败"
         else
-            log_warn "不支持自动大小，设置默认 16777216"
-            echo 16777216 > /sys/block/zram0/disksize || log_error "设置disksize失败"
+            log_warn "不支持自动大小，设置默认 17179869184"
+            echo 17179869184 > /sys/block/zram0/disksize || log_error "设置disksize失败"
         fi
     else
         log_info "设置 zram0 磁盘大小为 $size"
