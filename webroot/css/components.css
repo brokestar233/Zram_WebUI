@@ -190,6 +190,195 @@
     color: var(--on-surface);
 }
 
+/* 自定义选择控件样式 */
+.custom-select {
+    position: relative;
+    width: 100%;
+    min-width: 120px;
+    background-color: transparent;
+    cursor: pointer;
+    user-select: none;
+    border: none;
+    transition: all var(--tra);
+    --border-color: var(--outline);
+    --border-width: 0.0625rem;
+    --border: var(--border-width) solid var(--border-color);
+    --move: .6875rem;
+    --min: minmax(calc(.75rem - var(--border-width)), auto);
+    --icon-color: var(--on-surface-variant);
+    display: grid;
+    grid-template: "b span a a" calc(1rem - var(--border-width)) "icon input input icon2" auto / var(--min) auto 1fr var(--min);
+    gap: 0 .25rem;
+    border: var(--border-width) solid transparent;
+    border-bottom-color: var(--border-color);
+    border-radius: 0.25rem;
+    padding-bottom: var(--move);
+    margin-block: calc(1rem - var(--move)) 1rem;
+}
+
+.custom-select:hover {
+    --border-color: var(--on-surface);
+}
+
+.custom-select.active {
+    --border-color: var(--primary);
+    --border-width: 0.125rem;
+    --move: .75rem;
+    border-top-width: 0.0625rem;
+    padding-bottom: 0.75rem;
+}
+
+.custom-select::before, .custom-select::after {
+    content: "";
+    display: block;
+    min-height: 3.5rem;
+    box-sizing: border-box;
+    border: var(--border);
+    border-bottom-color: transparent;
+    margin-block: calc(-1 * var(--border-width));
+    grid-row: 1 / span 2;
+    z-index: -1;
+    transform: translateY(var(--move));
+    transition: border-color var(--tra);
+}
+
+.custom-select::before {
+    grid-area: b;
+    border-right: none;
+    border-top-left-radius: 0.25rem;
+    border-bottom-left-radius: 0.25rem;
+    margin-left: calc(-1 * var(--border-width));
+}
+
+.custom-select::after {
+    grid-area: a;
+    border-left: none;
+    border-top-right-radius: 0.25rem;
+    border-bottom-right-radius: 0.25rem;
+    margin-right: calc(-1 * var(--border-width));
+}
+
+.custom-select > span {
+    display: contents;
+    font: var(--body-s);
+    color: var(--border-color);
+    transition: color var(--tra);
+}
+
+.custom-select > span::before,
+.custom-select > span::after {
+    display: inline-block;
+    width: 1.5rem;
+    aspect-ratio: 1;
+    background-color: var(--icon-color);
+    margin: 0 .75rem calc(1rem - var(--border-width));
+    transform: translateY(var(--move));
+}
+
+.custom-select > span::before {
+    grid-area: icon;
+    margin-left: calc(.75rem - var(--border-width));
+}
+
+.custom-select > span::after {
+    grid-area: icon2;
+    margin-right: calc(.75rem - var(--border-width));
+}
+
+.select-selected {
+    grid-area: input;
+    font: var(--body-l);
+    color: var(--on-surface);
+    caret-color: var(--primary);
+    margin: 0;
+    padding: 0 0 calc(1rem - var(--border-width));
+    transform: translateY(var(--move));
+    outline: none;
+    border: none;
+    background-color: transparent;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.select-text {
+    flex: 1;
+    text-align: left;
+}
+
+.select-arrow {
+    font-size: 1.5rem;
+    color: var(--on-surface-variant);
+    transition: transform var(--tra);
+    font-variation-settings: 'FILL' 0;
+}
+
+.custom-select.active .select-arrow {
+    transform: rotate(180deg);
+    font-variation-settings: 'FILL' 1;
+}
+
+.select-items {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background-color: var(--surface-container);
+    border: 1px solid var(--outline-variant);
+    border-top: none;
+    border-radius: 0 0 var(--border-radius-l) var(--border-radius-l);
+    z-index: 1000;
+    max-height: 0;
+    overflow-y: auto;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    
+    /* 使用max-height和opacity控制显示/隐藏 */
+    opacity: 0;
+    visibility: hidden;
+    transition: max-height 0.3s ease, opacity 0.3s ease, visibility 0.3s ease;
+}
+
+.custom-select.active .select-items {
+    max-height: 300px;
+    opacity: 1;
+    visibility: visible;
+}
+
+.select-option {
+    padding: var(--spacing-m) var(--spacing-l);
+    font: var(--body-l);
+    color: var(--on-surface);
+    cursor: pointer;
+    transition: background-color var(--tra);
+}
+
+.select-option:hover {
+    background-color: color-mix(in oklch, var(--on-surface) 8%, transparent);
+}
+
+.select-option:focus {
+    background-color: color-mix(in oklch, var(--on-surface) 10%, transparent);
+    outline: none;
+}
+
+.select-option.selected {
+    background-color: var(--primary-container);
+    color: var(--on-primary-container);
+}
+
+/* 响应式设计 */
+@media (max-width: 480px) {
+    .custom-select {
+        min-width: 100px;
+    }
+}
+
+@media (orientation: landscape) and (max-width: 768px) {
+    .select-items {
+        max-height: 150px;
+    }
+}
+
 /* ===== Toast通知 ===== */
 #toast-container {
     position: fixed;
@@ -264,7 +453,7 @@
 }
 
 .toast-info::before {
-    mask-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" height="24" viewBox="0 -960 960 960" width="24"><path d="M440-280h80v-240h-80v240Zm40-320q17 0 28.5-11.5T520-640q0-17-11.5-28.5T480-680q-17 0-28.5 11.5T440-640q0 17 11.5 28.5T480-600Zm0 520q-83 0-156-31.5T197-197q-54-54-85.5-127T80-480q0-83 31.5-156T197-763q54-54 127-85.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 83-31.5 156T763-197q-54 54-127 85.5T480-80Zm0-80q134 0 227-93t93-227q0-134-93-227t-227-93q-134 0-227 93t-93 227q0 134 93 227t227 93Zm0-320Z"/></svg>');
+    mask-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" height="24" viewBox="0 -960 960 960" width="24"><path d="M440-296 282-282-56-56-226 226-114-114-56 56 170 170Zm56 216q-83 0-156-31.5T197-197q-54-54-85.5-127T80-480q0-83 31.5-156T197-763q54-54 127-85.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 83-31.5 156T763-197q-54 54-127 85.5T480-80Zm0-80q134 0 227-93t93-227q0-134-93-227t-227-93q-134 0-227 93t-93 227q0 134 93 227t227 93Zm0-320Z"/></svg>');
 }
 
 .toast-success {

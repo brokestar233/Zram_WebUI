@@ -8,10 +8,10 @@ elif [ -f $MODPATH/module_settings/build_config.sh  ]; then
 fi
 
 print_languages="zh"                   # Default language for printing
+size=auto
+writeback_block_size=8
+zstd_compression_level=9
 algorithm=lz4
 recompressd_algorithm1=zstd
 recompressd_algorithm2=
 recompressd_algorithm3=
-size=auto
-writeback_block_size=8
-zstd_compression_level=9

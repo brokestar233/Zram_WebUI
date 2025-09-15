@@ -44,7 +44,6 @@ const SettingsPage = {
             
             // 如果有临时表单状态且有未保存的更改，优先使用临时状态
             if (this.tempFormState && Object.keys(this.tempFormState).length > 0 && this.hasUnsavedChanges) {
-                console.log('恢复未保存的设置更改');
                 if (!this.settingsDescriptions) {
                     await this.loadSettingsMetadata();
                 }
@@ -278,21 +277,41 @@ const SettingsPage = {
             return this.renderTextControl(key, value, description);
         }
 
-        let html = `
-            <label>
-                <span>${description}</span>
-                <select id="setting-${key}">`;
-
+        // 生成选项列表HTML
+        let optionsHtml = '';
         for (const option of options) {
             const optionValue = option.value;
             // 获取当前语言的标签，如果没有则使用值本身
             const label = option.label ? (option.label[I18n.currentLang] || option.label.en || optionValue) : optionValue;
-
-            html += `<option value="${optionValue}" ${optionValue === value ? 'selected' : ''}>${label}</option>`;
+            
+            // 添加选中状态的class
+            const selectedClass = optionValue === value ? ' selected' : '';
+            
+            optionsHtml += `
+                <div class="select-option${selectedClass}" data-value="${optionValue}" tabindex="0">
+                    ${label}
+                </div>
+            `;
         }
 
-        html += `
-                </select>
+        // 获取当前选中项的标签
+        const currentOption = options.find(opt => opt.value === value);
+        const currentLabel = currentOption ? 
+            (currentOption.label[I18n.currentLang] || currentOption.label.en || currentOption.value) : 
+            value;
+
+        let html = `
+            <label>
+                <div class="custom-select" id="setting-${key}" data-value="${value}">
+                    <span>${description}</span>
+                    <div class="select-selected">
+                        <span class="select-text">${currentLabel}</span>
+                        <span class="select-arrow material-symbols-rounded">arrow_drop_down</span>
+                    </div>
+                    <div class="select-items">
+                        ${optionsHtml}
+                    </div>
+                </div>
             </label>
         `;
         return html;
@@ -498,10 +517,15 @@ const SettingsPage = {
                 // 跳过内部属性和排除项
                 if (key.startsWith('_') || this.excludedSettings.includes(key)) continue;
 
+                // 查找自定义选择控件
+                const customSelect = document.querySelector(`.custom-select[id="setting-${key}"]`);
                 const element = document.getElementById(`setting-${key}`);
-                if (!element) continue;
-
-                if (element.type === 'checkbox') {
+                
+                if (customSelect) {
+                    updatedSettings[key] = customSelect.getAttribute('data-value');
+                } else if (!element) {
+                    continue;
+                } else if (element.type === 'checkbox') {
                     updatedSettings[key] = element.checked;
                 } else if (element.type === 'number' || element.type === 'range') {
                     updatedSettings[key] = Number(element.value);
@@ -663,10 +687,15 @@ const SettingsPage = {
             // 跳过内部属性和排除项
             if (key.startsWith('_') || this.excludedSettings.includes(key)) continue;
 
+            // 查找自定义选择控件
+            const customSelect = document.querySelector(`.custom-select[id="setting-${key}"]`);
             const element = document.getElementById(`setting-${key}`);
-            if (!element) continue;
-
-            if (element.type === 'checkbox') {
+            
+            if (customSelect) {
+                currentSettings[key] = customSelect.getAttribute('data-value');
+            } else if (!element) {
+                continue;
+            } else if (element.type === 'checkbox') {
                 currentSettings[key] = element.checked;
             } else if (element.type === 'number' || element.type === 'range') {
                 currentSettings[key] = Number(element.value);
@@ -735,8 +764,12 @@ const SettingsPage = {
         const settingsContainer = document.getElementById('settings-container');
         if (settingsContainer) {
             settingsContainer.innerHTML = this.renderSettings();
-            // 重新绑定事件
-            this.bindSettingEvents();
+            
+            // 使用 setTimeout 确保 DOM 更新完成后再绑定事件
+            setTimeout(() => {
+                this.bindSettingEvents();
+                this.initCustomSelects(settingsContainer);
+            }, 0);
         }
     },
 
@@ -782,10 +815,15 @@ const SettingsPage = {
             // 跳过内部属性和排除项
             if (key.startsWith('_') || this.excludedSettings.includes(key)) continue;
 
+            // 查找自定义选择控件
+            const customSelect = document.querySelector(`.custom-select[id="setting-${key}"]`);
             const element = document.getElementById(`setting-${key}`);
-            if (!element) continue;
-
-            if (element.type === 'checkbox') {
+            
+            if (customSelect) {
+                tempSettings[key] = customSelect.getAttribute('data-value');
+            } else if (!element) {
+                continue;
+            } else if (element.type === 'checkbox') {
                 tempSettings[key] = element.checked;
             } else if (element.type === 'number' || element.type === 'range') {
                 tempSettings[key] = Number(element.value);
@@ -809,8 +847,18 @@ const SettingsPage = {
 
             // 更新设置显示
             this.updateSettingsDisplay();
-            // 绑定设置项事件
-            this.bindSettingEvents();
+            
+            // 使用setTimeout确保DOM完全更新后再绑定事件
+            setTimeout(() => {
+                // 绑定设置项事件
+                this.bindSettingEvents();
+                
+                // 初始化自定义选择控件
+                const container = document.getElementById('settings-container');
+                if (container) {
+                    this.initCustomSelects(container);
+                }
+            }, 0);
         } catch (error) {
             console.error('设置页面初始化失败:', error);
             Core.showToast(I18n.translate('SETTINGS_INIT_ERROR', '设置页面初始化失败'), 'error');
@@ -827,24 +875,8 @@ const SettingsPage = {
             // 监听输入变化
             container.addEventListener('change', (e) => {
                 const target = e.target;
-                if (target.tagName === 'SELECT' || target.tagName === 'INPUT') {
-                    // 标记有未保存的更改
-                    this.hasUnsavedChanges = this.checkForUnsavedChanges();
-
-                    // 保存临时表单状态
-                    this.saveTemporaryFormState();
-                }
-            });
-
-            // 监听输入事件，实时更新滑动条值显示
-            container.addEventListener('input', (e) => {
-                const target = e.target;
-                if (target.type === 'range') {
-                    const output = target.nextElementSibling;
-                    if (output && output.tagName === 'OUTPUT') {
-                        output.textContent = target.value;
-                    }
-
+                // 专门处理自定义选择控件的情况
+                if (target.closest('.custom-select')) {
                     // 标记有未保存的更改
                     this.hasUnsavedChanges = this.checkForUnsavedChanges();
 
@@ -853,6 +885,102 @@ const SettingsPage = {
                 }
             });
         }
+    },
+
+    toggleSelect(selectElement) {
+        const isActive = selectElement.classList.contains('active');
+        this.closeAllSelects();
+        if (!isActive) {
+            selectElement.classList.add('active');
+            const selectItems = selectElement.querySelector('.select-items');
+            if (selectItems) {
+                selectItems.style.maxHeight = '300px';
+                selectItems.style.opacity = '1';
+                selectItems.style.visibility = 'visible';
+            }
+        }
+    },
+    
+    closeAllSelects() {
+        const customSelects = document.querySelectorAll('.custom-select');
+        customSelects.forEach(select => {
+            select.classList.remove('active');
+            const selectItems = select.querySelector('.select-items');
+            if (selectItems) {
+                selectItems.style.maxHeight = '0';
+                selectItems.style.opacity = '0';
+                selectItems.style.visibility = 'hidden';
+            }
+        });
+    },
+    
+    initCustomSelects(container) {
+        const customSelects = container.querySelectorAll('.custom-select');
+        
+        customSelects.forEach(select => {
+            const selected = select.querySelector('.select-selected');
+            const options = select.querySelectorAll('.select-option');
+            // 注意：这里移除 selectText 的定义，因为我们将在点击事件中动态获取
+            
+            // 移除旧的事件监听器
+            const newSelected = selected.cloneNode(true);
+            selected.parentNode.replaceChild(newSelected, selected);
+            
+            // 绑定点击事件
+            newSelected.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.toggleSelect(select);
+            });
+            
+            // 处理选项点击
+            options.forEach(option => {
+                const newOption = option.cloneNode(true);
+                option.parentNode.replaceChild(newOption, option);
+                
+                newOption.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const value = newOption.getAttribute('data-value');
+                    const text = newOption.textContent.trim();
+                    
+                    // 动态获取当前的 select-text（修复文本未更新）
+                    const selectText = select.querySelector('.select-text');
+                    selectText.textContent = text;
+                    
+                    select.setAttribute('data-value', value);
+                    
+                    // 动态获取当前的选项列表（修复多个选中）
+                    const currentOptions = select.querySelectorAll('.select-option');
+                    currentOptions.forEach(opt => opt.classList.remove('selected'));
+                    newOption.classList.add('selected');
+                    
+                    this.closeAllSelects();
+                    
+                    const fakeEvent = new Event('change');
+                    select.dispatchEvent(fakeEvent);
+                    
+                    this.hasUnsavedChanges = this.checkForUnsavedChanges();
+                    this.saveTemporaryFormState();
+                });
+                
+                newOption.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        newOption.click();
+                    } else if (e.key === 'Escape') {
+                        this.closeAllSelects();
+                    }
+                });
+            });
+        });
+        
+        // 绑定全局点击事件
+        document.removeEventListener('click', this.closeAllSelectsHandler);
+        this.closeAllSelectsHandler = (e) => {
+            if (!e.target.closest('.custom-select')) {
+                this.closeAllSelects();
+            }
+        };
+        document.addEventListener('click', this.closeAllSelectsHandler);
     },
 
     // 页面激活时的回调

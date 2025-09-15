@@ -13,6 +13,41 @@
       "en": "Default language for printing",
       "zh": "默认显示语言",
       "ru": "Язык отображения по умолчанию"
+    },
+    "size": {
+      "en": "ZRAM size",
+      "zh": "ZRAM 大小",
+      "ru": "Размер ZRAM"
+    },
+    "writeback_block_size": {
+      "en": "Writeback block size",
+      "zh": "回写块大小",
+      "ru": "Размер блока обратной записи"
+    },
+    "zstd_compression_level": {
+      "en": "ZSTD compression level",
+      "zh": "ZSTD 压缩级别",
+      "ru": "Уровень сжатия ZSTD"
+    },
+    "algorithm": {
+      "en": "Compression algorithm",
+      "zh": "压缩算法",
+      "ru": "Алгоритм сжатия"
+    },
+    "recompressd_algorithm1": {
+      "en": "Re-compression algorithm 1",
+      "zh": "重压缩算法 1",
+      "ru": "Алгоритм повторного сжатия 1"
+    },
+    "recompressd_algorithm2": {
+      "en": "Re-compression algorithm 2",
+      "zh": "重压缩算法 2",
+      "ru": "Алгоритм повторного сжатия 2"
+    },
+    "recompressd_algorithm3": {
+      "en": "Re-compression algorithm 3",
+      "zh": "重压缩算法 3",
+      "ru": "Алгоритм повторного сжатия 3"
     }
   },
   "options": {
