@@ -583,53 +583,64 @@ const StatusPage = {
                         }
                     }
                 }
-            }
-
-            // 检查Magisk
-            try {
-                // 检查多个可能的Magisk路径
-                const magiskPaths = [
-                    '/data/adb/magisk',
-                    '/data/adb/magisk.db',
-                    '/data/adb/magisk.img'
-                ];
-                
-                for (const path of magiskPaths) {
-                    const exists = await Core.execCommand(`[ -e "${path}" ] && echo "true" || echo "false"`);
-                    if (exists.trim() === "true") {
-                        // 尝试获取Magisk版本
-                        const magiskResult = await Core.execCommand('magisk -v');
-                        if (magiskResult && !magiskResult.includes('not found')) {
-                            const version = magiskResult.trim().split(':')[0];
-                            if (version) {
-                                rootInfo.push(`Magisk ${version}`);
-                                break;
+            } else {
+                // 检查Magisk
+                try {
+                    // 检查多个可能的Magisk路径
+                    const magiskPaths = [
+                        '/data/adb/magisk',
+                        '/data/adb/magisk.db',
+                        '/data/adb/magisk.img'
+                    ];
+                    
+                    for (const path of magiskPaths) {
+                        const exists = await Core.execCommand(`[ -e "${path}" ] && echo "true" || echo "false"`);
+                        if (exists.trim() === "true") {
+                            // 尝试获取Magisk版本
+                            const magiskResult = await Core.execCommand('magisk -v');
+                            if (magiskResult && !magiskResult.includes('not found')) {
+                                const version = magiskResult.trim().split(':')[0];
+                                if (version) {
+                                    rootInfo.push(`Magisk ${version}`);
+                                    break;
+                                }
                             }
                         }
                     }
+                } catch (error) {
+                    console.debug('Magisk检测失败:', error);
                 }
-            } catch (error) {
-                console.debug('Magisk检测失败:', error);
-            }
 
-            // 检查KernelSU
-            try {
-                const ksuResult = await Core.execCommand('ksu -V || ksud -V');
-                if (ksuResult && !ksuResult.includes('not found')) {
-                    rootInfo.push(`KernelSU ${ksuResult.trim()}`);
+                // 检查KernelSU
+                try {
+                    const ksuResult = await Core.execCommand('ksu -V || ksud -V');
+                    if (ksuResult && !ksuResult.includes('not found')) {
+                        rootInfo.push(`KernelSU ${ksuResult.trim()}`);
+                    }
+                } catch (error) {
+                    console.debug('KernelSU检测失败:', error);
                 }
-            } catch (error) {
-                console.debug('KernelSU检测失败:', error);
-            }
 
-            // 检查APatch
-            try {
-                const apatchResult = await Core.execCommand('apd -V');
-                if (apatchResult && !apatchResult.includes('not found')) {
-                    rootInfo.push(`APatch ${apatchResult.trim()}`);
+                // 检查 SukiSU-Ultra
+                try {
+                    const ksuResult = await Core.execCommand('/data/adb/ksud -V');
+                    if (ksuResult && !ksuResult.includes('not found')) {
+                        const version = ksuResult.trim().split(' ')[1];
+                        rootInfo.push(`SukiSU-Ultra ${version}`);
+                    }
+                } catch (error) {
+                    console.debug('SukiSU-Ultra检测失败:', error);
                 }
-            } catch (error) {
-                console.debug('APatch检测失败:', error);
+
+                // 检查APatch
+                try {
+                    const apatchResult = await Core.execCommand('apd -V');
+                    if (apatchResult && !apatchResult.includes('not found')) {
+                        rootInfo.push(`APatch ${apatchResult.trim()}`);
+                    }
+                } catch (error) {
+                    console.debug('APatch检测失败:', error);
+                }
             }
 
             // 通用root检测
