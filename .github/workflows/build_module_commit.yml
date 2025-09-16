@@ -39,7 +39,96 @@ jobs:
           . module_settings/config.sh
           LATEST_TAG=$(cat latest_tag.txt)
           CURRENT_TIME=$(cat current_time.txt)
-          . build_for_GITHUBACTION.sh
+          
+          # 创建 module.prop
+          echo "id=${action_id}" > module.prop
+          echo "name=${action_name}" >> module.prop
+          echo "version=${LATEST_TAG}" >> module.prop
+          echo "versionCode=${CURRENT_TIME}" >> module.prop
+          echo "author=${action_author}" >> module.prop
+          echo "description=${action_description}" >> module.prop
+          echo "updateJson=${updateJson}" >> module.prop
+          
+          # 文件替换
+          sed -i "s/20240503/${CURRENT_TIME}/g" webroot/pages/status.js
+          find webroot -name "status.js" -exec sed -i "s/Aurora-Nasa-1\/AMMF/${Github_update_repo}/g" {} \;
+          find files -name "*.sh" -exec sed -i "s/AMMF/${action_id}/g" {} \;
+          find webroot -name "*.js" -exec sed -i "s/AMMF/${action_id}/g" {} \;
+          find src -name "*.cpp" -exec sed -i "s/AMMF2/${action_id}/g" {} \;
+          sed -i "s/AMMF/${action_id}/g" webroot/index.html
+          find webroot/translations -name "*.json" -exec sed -i "s/AMMF/${action_name}/g" {} \;
+          echo "已完成模块ID替换"
+          
+          # 创建 META-INF 目录结构
+          mkdir -p META-INF/com/google/android
+          echo '#MAGISK' > META-INF/com/google/android/updater-script
+          
+          # 编译二进制文件
+          compile_binaries() {
+              local prebuilt_path="$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin"
+              local targets=(aarch64 x86_64)
+              local targets1=(arm64-v8a x86_64)
+              local sources=(logmonitor)
+          
+              # 设置编译标志
+              export CFLAGS="-O3 -flto"
+              export CXXFLAGS="-O3 -flto -std=c++20"
+          
+              mkdir -p bin
+          
+              # 顺序编译
+              for source in "${sources[@]}"; do
+                  for target in "${targets[@]}"; do
+                      echo "Compiling $source for $target..."
+                      local output="bin/${source}-${action_id}-${target}"
+                      local cpp_file="src/$source.cpp"
+          
+                      if [ ! -f "$cpp_file" ]; then
+                          echo "Source file not found: $cpp_file"
+                          exit 1
+                      fi
+          
+                      "$prebuilt_path/${target}-linux-android21-clang++" \
+                          $CXXFLAGS -Wall -Wextra -static-libstdc++ \
+                          -I src -I src/ \
+                          -o "$output" "$cpp_file" || exit 1
+                  done
+              done
+          
+              cd src/filewatcher
+          
+              for target in "${targets1[@]}"; do
+                  if [ "$target" == "arm64-v8a" ]; then
+                      local output="../../../bin/filewatcher-${action_id}-aarch64"
+                  else
+                      local output="../../../bin/filewatcher-${action_id}-${target}"
+                  fi
+                  mkdir build && cd build
+                  cmake .. \
+                      -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_HOME/build/cmake/android.toolchain.cmake \
+                      -DANDROID_ABI=${target} \
+                      -DANDROID_PLATFORM=android-21
+                  make -j$(nproc)
+                  cp src/filewatcher $output
+                  cd .. && rm -rf build
+              done
+          
+              cd ../..
+          }
+          
+          compile_binaries
+          
+          # 自动 strip 所有生成的二进制文件
+          for binary in bin/*-aarch64 bin/*-x86_64; do
+              $ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip "$binary" || echo "Failed to strip $binary"
+          done
+          
+          # 清理文件
+          rm -rf src
+          rm -rf docs
+          rm build.sh
+          rm latest_tag.txt
+          rm current_time.txt
 
       - name: Upload zip files as artifacts
         uses: actions/upload-artifact@v4
