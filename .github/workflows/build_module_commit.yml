@@ -17,13 +17,12 @@ jobs:
         run: |
           random_number=$((RANDOM % 100))
           timestamp_with_random="$(date +'%Y%m%d')${random_number}"
-          echo "$timestamp_with_random" > current_time.txt
+          echo "CURRENT_TIME=$timestamp_with_random" >> $GITHUB_ENV
 
       - name: Get latest tag
         id: latest-tag
         run: |
-          LATEST_TAG=$(git describe --tags $(git rev-list --tags --max-count=1))
-          echo "$LATEST_TAG" > latest_tag.txt
+          echo "LATEST_TAG=$(git describe --tags $(git rev-list --tags --max-count=1))" >> $GITHUB_ENV
 
       - name: Set short SHA
         run: echo "SHORT_SHA=${GITHUB_SHA::7}" >> $GITHUB_ENV
@@ -37,8 +36,6 @@ jobs:
       - name: Start Build
         run: |
           . module_settings/config.sh
-          LATEST_TAG=$(cat latest_tag.txt)
-          CURRENT_TIME=$(cat current_time.txt)
           
           # 创建 module.prop
           echo "id=${action_id}" > module.prop
@@ -127,8 +124,6 @@ jobs:
           rm -rf src
           rm -rf docs
           rm build.sh
-          rm latest_tag.txt
-          rm current_time.txt
 
       - name: Upload zip files as artifacts
         uses: actions/upload-artifact@v4
