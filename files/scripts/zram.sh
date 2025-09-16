@@ -219,14 +219,26 @@ zram_setup() {
         echo "$pressure" > /sys/block/zram0/pressure || log_warn "设置pressure失败"
         if [ "$support_auto_size" = "CONFIG_ZRAM_AUTO_SIZE=y" ]; then
             log_info "设置 zram0 磁盘大小为 auto"
-            echo "$size" > /sys/block/zram0/disksize || log_error "设置disksize失败"
+            if ! echo "$size" > /sys/block/zram0/disksize; then
+                log_error "设置disksize为auto失败,尝试设置为17179869184"
+                if ! echo 17179869184 > /sys/block/zram0/disksize; then
+                    log_error "设置disksize失败"
+                    return 1
+                fi
+            fi
         else
             log_warn "不支持自动大小，设置默认 17179869184"
-            echo 17179869184 > /sys/block/zram0/disksize || log_error "设置disksize失败"
+            if ! echo 17179869184 > /sys/block/zram0/disksize; then
+                log_error "设置disksize失败"
+                return 1
+            fi
         fi
     else
         log_info "设置 zram0 磁盘大小为 $size"
-        echo "$size" > /sys/block/zram0/disksize || log_error "设置disksize失败"
+        if ! echo "$size" > /sys/block/zram0/disksize; then
+            log_error "设置disksize失败"
+            return 1
+        fi
     fi
 
     # 创建并启用swap
