@@ -141,6 +141,7 @@ zramoff() {
     log_info "关闭 swap 并重置 zram0"
     sleep 5  # 等待系统稳定
     su -c swapoff /dev/block/zram0
+    sleep 2 # 确保zram已关闭
     echo 1 > /sys/block/zram0/reset
     echo 0 > /sys/block/zram0/disksize
 }
