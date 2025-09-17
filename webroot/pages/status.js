@@ -422,7 +422,7 @@ const StatusPage = {
                 outputContainer.remove();
             });
 
-            await Core.execCommand(`busybox sh ${Core.MODULE_PATH}action.sh`, {
+            await Core.execCommand(`sh ${Core.MODULE_PATH}action.sh`, {
                 onStdout: (data) => {
                     outputContent.textContent += data + '\n';
                     outputContent.scrollTop = outputContent.scrollHeight;

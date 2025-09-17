@@ -36,7 +36,6 @@ jobs:
 
       - name: Start Build
         run: |
-          mkdir bin
           . module_settings/config.sh
           
           # 创建 module.prop
