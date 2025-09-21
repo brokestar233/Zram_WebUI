@@ -1,0 +1,3 @@
+[submodule "zygisk/src/main/external/libcxx"]
+	path = zygisk/src/main/external/libcxx
+	url = https://github.com/topjohnwu/libcxx

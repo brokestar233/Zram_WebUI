@@ -95,3 +95,10 @@ vgcore.*
 docs/_build/
 docs/html/
 docs/latex/
+# Ignore Gradle project-specific cache directory
+.gradle
+
+# Ignore Gradle build output directory
+build
+.cxx
+.kotlin
