@@ -246,5 +246,9 @@ zram_setup() {
     zramon
 }
 
+while [ ! -d /data/user/0/android ]; do
+    sleep 1
+done
+
 zram_setup
 
