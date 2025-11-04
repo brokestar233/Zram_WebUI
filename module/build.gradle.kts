@@ -221,6 +221,13 @@ listOf("debug", "release").forEach { variantName ->
         val publicKeyFile = File(project.projectDir, "public_key")
 
         doLast {
+            val currentDate = java.time.LocalDate.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd"))
+            val statusJsFile = File(moduleOutputDir, "webroot/pages/status.js")
+            if (statusJsFile.exists()) {
+                var content = statusJsFile.readText()
+                content = content.replace("20240503", currentDate)
+                statusJsFile.writeText(content)
+            }
             
             fun sha256Files() {
                 moduleOutputDir.walkTopDown().forEach { file ->
