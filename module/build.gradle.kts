@@ -305,6 +305,7 @@ listOf("debug", "release").forEach { variantName ->
                     }
 
                     set.add(Pair(File(moduleOutputDir, "files/languages.sh"), null))
+                    set.add(Pair(File(moduleOutputDir, "sepolicy.rule"), null))
                     set.add(Pair(File(moduleOutputDir, "customize.sh"), null))
                     set.add(Pair(File(moduleOutputDir, "service.sh"), null))
                     set.add(Pair(File(moduleOutputDir, "action.sh"), null))

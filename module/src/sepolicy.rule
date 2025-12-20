@@ -1,0 +1,3 @@
+# make writeback happy
+type writeback_file file_type
+allow kernel writeback_file file *

@@ -196,6 +196,7 @@ zram_setup() {
             echo "$loop_file" > /sys/block/zram0/backing_dev
         else
             log_info "绑定文件 $FILE 到 loop 设备"
+            chcon u:object_r:writeback_file:s0 $FILE
             LOOP_DEVICE=$(su -c losetup --show -f "$FILE")
             if [ -n "$LOOP_DEVICE" ]; then
                 log_info "设置 zram0 的 backing_dev 为 $LOOP_DEVICE"

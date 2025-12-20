@@ -58,6 +58,7 @@ bin/*
 files/*
 webroot/*
 module_settings/*
+sepolicy.rule
 module.prop
 service.sh
 action.sh
