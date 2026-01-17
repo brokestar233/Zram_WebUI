@@ -22,7 +22,7 @@ fi
 
 dmesg > "$LOG_DIR/dmesg.log"
 
-(cd $LOG_DIR && $MODPATH/bin/7zz-0zram a "$MODPATH/TEMP/Zram_WebUI_LOGS_${timestamp}.zip" ./* -mx9 -y)
+(cd $LOG_DIR && $MODPATH/bin/7zz-zram a "$MODPATH/TEMP/Zram_WebUI_LOGS_${timestamp}.zip" ./* -mx9 -y)
 
 mv $MODPATH/TEMP/Zram_WebUI_LOGS_${timestamp}.zip /storage/emulated/0/Zram_WebUI_LOGS_${timestamp}.zip
 

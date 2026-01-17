@@ -185,29 +185,88 @@ zram_setup() {
     check_and_delete_file "$FILE" "$writeback_block_size"
 
     if [ "$writeback_block_size" -ne 0 ]; then
+        # 文件创建与 Pinning 流程
         if [ ! -f "$FILE" ]; then
-            log_info "创建大小为 ${writeback_block_size}GB 的文件: $FILE"
-            su -c dd if=/dev/zero of="$FILE" bs=1G count="$writeback_block_size"
-            loop_edit=1
+            log_info "创建大小为 ${writeback_block_size}G 的文件: $FILE"
+            
+            # 确保父目录存在
+            mkdir -p "$(dirname "$FILE")"
+            
+            # TRIM 释放空间，防止分配到脏块
+            $MODPATH/bin/fstrim-zram -v "$(dirname "$FILE")" 2>/dev/null
+            
+            # 先创建空文件
+            touch "$FILE"
+
+            # 在文件为空时设置 Pinning
+            $MODPATH/bin/f2fs_pin-zram 1 "$FILE"
+            if [ $? -ne 0 ]; then
+                log_error "F2FS Pin 设置失败，可能不支持或文件系统错误"
+                rm -f "$FILE" # 失败了要清理，避免留下未 Pin 的文件
+                return 1
+            fi
+            
+            # 预分配
+            # 因为已经设置了 Pin 标志，fallocate 会自动在 Pinned Section 寻找连续空间
+            $MODPATH/bin/fallocate-zram -l "${writeback_block_size}G" "$FILE"
+            if [ $? -ne 0 ]; then
+                log_error "fallocate 失败，空间不足？"
+                rm -f "$FILE" # 分配失败则清理文件
+                return 1
+            fi
+
+            # 设置 SELinux 上下文
+            chcon u:object_r:writeback_file:s0 "$FILE"
         fi
-        if [ -f "$TMP_FOLDER/loop_file" ] && [ "$loop_edit" = 0 ]; then
-            log_info "使用已绑定的 loop 设备"
-            loop_file=$(cat "$TMP_FOLDER/loop_file")
-            echo "$loop_file" > /sys/block/zram0/backing_dev
-        else
-            log_info "绑定文件 $FILE 到 loop 设备"
-            chcon u:object_r:writeback_file:s0 $FILE
-            LOOP_DEVICE=$(su -c losetup --show -f "$FILE")
-            if [ -n "$LOOP_DEVICE" ]; then
-                log_info "设置 zram0 的 backing_dev 为 $LOOP_DEVICE"
-                echo "$LOOP_DEVICE" > /sys/block/zram0/backing_dev
-                echo "$LOOP_DEVICE" > "$TMP_FOLDER/loop_file"
+
+        # 智能检查 Loop 设备绑定状态
+        # 使用 losetup -j 查找该文件是否已经绑定了 Loop 设备
+        EXISTING_LOOP=$($MODPATH/bin/losetup-zram -j "$FILE" | head -n1 | cut -d: -f1)
+
+        if [ -n "$EXISTING_LOOP" ]; then
+            log_info "检测到文件已绑定到: $EXISTING_LOOP"
+
+            # 检查是否开启了 Direct IO
+            DIO_STATUS=$($MODPATH/bin/losetup-zram -a | grep "$EXISTING_LOOP" | grep "direct-io")
+            if [ -z "$DIO_STATUS" ]; then
+                 log_warn "现有 Loop 未开启 Direct IO，尝试重新绑定..."
+                 $MODPATH/bin/losetup-zram -d "$EXISTING_LOOP"
+                 EXISTING_LOOP=""
             else
-                log_error "loop 设备绑定失败"
+                 LOOP_DEVICE="$EXISTING_LOOP"
             fi
         fi
+
+        # 如果没有绑定，则执行绑定
+        if [ -z "$EXISTING_LOOP" ]; then
+            log_info "正在绑定文件到 loop 设备..."
+            LOOP_DEVICE=$($MODPATH/bin/losetup-zram --direct-io=on --show -f "$FILE")
+
+            if [ -z "$LOOP_DEVICE" ]; then
+                log_error "Loop 设备绑定失败！"
+                return 1
+            fi
+        fi
+
+        # 设置 ZRAM backing device
+        CURRENT_BACKING=$(cat /sys/block/zram0/backing_dev)
+
+        if [ "$CURRENT_BACKING" == "none" ]; then
+            log_info "将 $LOOP_DEVICE 设为 zram0 后端..."
+            echo "$LOOP_DEVICE" > /sys/block/zram0/backing_dev
+            if [ $? -eq 0 ]; then
+                log_info "Writeback 设置成功！"
+            else
+                log_error "写入 backing_dev 失败，ZRAM 可能已被占用。"
+            fi
+        elif [ "$CURRENT_BACKING" == "$LOOP_DEVICE" ]; then
+            log_info "ZRAM 已经正确配置了该后端设备。"
+        else
+            log_warn "ZRAM 已有其他后端设备: $CURRENT_BACKING，跳过设置。"
+        fi
+
     else
-        log_warn "writeback_block_size 为 0，跳过文件处理"
+        log_warn "writeback_block_size 为 0，跳过处理。"
     fi
 
     # 设置disksize

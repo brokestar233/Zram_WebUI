@@ -27,11 +27,18 @@ val targetMappings = mapOf(
     "x86_64" to "x86_64"
 )
 
-val compilerMappings = mapOf(
+val compilerMappings_cpp = mapOf(
     "arm64-v8a" to "aarch64-linux-android21-clang++",
     "armeabi-v7a" to "armv7a-linux-androideabi21-clang++",
     "x86" to "i686-linux-android21-clang++",
     "x86_64" to "x86_64-linux-android21-clang++"
+)
+
+val compilerMappings_c = mapOf(
+    "arm64-v8a" to "aarch64-linux-android21-clang",
+    "armeabi-v7a" to "armv7a-linux-androideabi21-clang",
+    "x86" to "i686-linux-android21-clang",
+    "x86_64" to "x86_64-linux-android21-clang"
 )
 
 fun getPrebuiltPath(): String {
@@ -52,7 +59,7 @@ fun compileLogmonitor(variantName: String, buildDir: File) {
     val logmonitorSource = File(projectDir, "cpp/logmonitor.cpp")
     if (logmonitorSource.exists()) {
         targetMappings.forEach { (abi, target) ->
-            val compiler = compilerMappings[abi]
+            val compiler = compilerMappings_cpp[abi]
             val outputFile = File(binDir, "logmonitor-${moduleId}-${target}")
             val cmd = listOf(
                 "$prebuiltPath/$compiler",
@@ -69,6 +76,51 @@ fun compileLogmonitor(variantName: String, buildDir: File) {
                 logger.lifecycle("Error compiling logmonitor for $abi")
             }
         }
+    }
+}
+
+fun compileF2fspin(variantName: String, buildDir: File) {
+    if (ndkPath == null) {
+        logger.warn("ANDROID_NDK_HOME not set, skipping native binary compilation")
+        return
+    }
+    
+    val prebuiltPath = getPrebuiltPath()
+    val binDir = File(buildDir, "bin")
+    binDir.mkdirs()
+
+    // 确保这里的变量名与实际逻辑一致
+    val f2fspinSource = File(projectDir, "c/f2fs_pin.c")
+    if (f2fspinSource.exists()) {
+        targetMappings.forEach { (abi, target) ->
+            // 使用 C 编译器映射
+            val compiler = compilerMappings_c[abi]
+            val outputFile = File(binDir, "f2fs_pin-${moduleId}-${target}")
+            
+            val cmd = listOf(
+                "$prebuiltPath/$compiler",
+                "-O3", 
+                "-flto", 
+                "-std=c11", // C项目通常使用 c11 或 c99，而不是 c++20
+                "-Wall", 
+                "-Wextra", 
+                // "-static-libstdc++", // 纯 C 项目通常不需要链接 C++ 标准库
+                "-I", "${projectDir}/c",
+                "-o", outputFile.absolutePath,
+                f2fspinSource.absolutePath
+            )
+            
+            logger.lifecycle("Compiling f2fs_pin for $abi ($target)...")
+            val process = Runtime.getRuntime().exec(cmd.toTypedArray())
+            process.waitFor()
+            if (process.exitValue() != 0) {
+                // 打印错误流以便调试
+                val errorMsg = process.errorStream.bufferedReader().readText()
+                logger.error("Error compiling f2fs_pin for $abi: $errorMsg")
+            }
+        }
+    } else {
+        logger.warn("Source file not found: ${f2fspinSource.absolutePath}")
     }
 }
 
@@ -91,7 +143,7 @@ fun compileFilewatcher(variantName: String, buildDir: File) {
         val buildDirAbi = File(filewatcherDir, "build_$abi")
         buildDirAbi.mkdirs()
         
-        val compiler = compilerMappings[abi]
+        val compiler = compilerMappings_cpp[abi]
         val outputFile = File(binDir, "filewatcher-${moduleId}-${target}")
         
         logger.lifecycle("Compiling filewatcher for $abi ($target)...")
@@ -126,6 +178,197 @@ fun compileFilewatcher(variantName: String, buildDir: File) {
     }
 }
 
+fun compileUtilLinux(variantName: String, buildDir: File) {
+    // 1. 检查 NDK 路径
+    if (ndkPath == null) {
+        logger.warn("ANDROID_NDK_HOME not set, skipping util-linux compilation")
+        return
+    }
+    val ndkDir = File(ndkPath)
+
+    // 2. 检查源码路径
+    val utilLinuxSrcDir = File(projectDir, "util-linux")
+    if (!utilLinuxSrcDir.exists()) {
+        logger.error("util-linux source directory not found at $utilLinuxSrcDir")
+        return
+    }
+    
+    // 检查是否需要先运行 ./autogen.sh (如果是从 git clone 下来的通常需要)
+    if (!File(utilLinuxSrcDir, "configure").exists()) {
+        logger.lifecycle("configure script not found, running autogen.sh...")
+        runCommand(listOf("./autogen.sh"), utilLinuxSrcDir, emptyMap())
+    }
+
+    val binDir = File(buildDir, "bin")
+    binDir.mkdirs()
+
+    val targetTools = mapOf(
+        "fallocate" to "fallocate",
+        "losetup" to "losetup",
+        "fstrim" to "fstrim"
+    )
+
+    // 3. 确定宿主机工具链路径 (HOST OS)
+    val osName = System.getProperty("os.name").lowercase()
+    val hostTag = when {
+        osName.contains("win") -> "windows-x86_64"
+        osName.contains("mac") -> "darwin-x86_64"
+        else -> "linux-x86_64"
+    }
+    
+    // NDK r19+ 使用 toolchains/llvm/prebuilt/
+    val toolchainBin = File(ndkDir, "toolchains/llvm/prebuilt/$hostTag/bin")
+    if (!toolchainBin.exists()) {
+        logger.error("NDK toolchain bin not found at $toolchainBin. Ensure you are using NDK r19+.")
+        return
+    }
+
+    // 4. 定义目标 API Level (建议设为 24 或 21，根据 minSdk 设置)
+    val apiLevel = 29
+
+    targetMappings.forEach { (abi, target) ->
+        logger.lifecycle("Compiling util-linux tools for $abi (API $apiLevel)...")
+
+        val buildDirAbi = File(utilLinuxSrcDir, "build_$abi")
+        buildDirAbi.mkdirs()
+
+        // 5. 配置编译器前缀和标志
+        // 映射 Gradle ABI 到 NDK Clang 的命名规则
+        val (clangPrefix, hostTriple) = when (abi) {
+            "arm64-v8a" -> "aarch64-linux-android" to "aarch64-linux-android"
+            "armeabi-v7a" -> "armv7a-linux-androideabi" to "arm-linux-androideabi" // host triple 不带 v7a
+            "x86_64" -> "x86_64-linux-android" to "x86_64-linux-android"
+            "x86" -> "i686-linux-android" to "i686-linux-android"
+            else -> throw IllegalArgumentException("Unsupported ABI: $abi")
+        }
+
+        // 关键：NDK 中 CC 的完整路径
+        // 注意：armv7a 的编译器名是 armv7a-linux-androideabi$API-clang，但 binutils (ar/ranlib) 是 arm-linux-androideabi-ar
+        val ccPath = File(toolchainBin, "$clangPrefix$apiLevel-clang").absolutePath
+        val arPath = File(toolchainBin, "llvm-ar").absolutePath
+        val ranlibPath = File(toolchainBin, "llvm-ranlib").absolutePath
+        val stripPath = File(toolchainBin, "llvm-strip").absolutePath
+
+        // 6. 构建环境变量
+        val env = mutableMapOf<String, String>()
+        env["CC"] = ccPath
+        env["AR"] = arPath
+        env["RANLIB"] = ranlibPath
+        env["PATH"] = "${toolchainBin.absolutePath}:${System.getenv("PATH")}"
+        
+        // 7. 配置 Configure 命令
+        val configureCmd = mutableListOf(
+            "../configure",
+            "--host=$hostTriple",
+            "--prefix=/",              // 这是一个技巧，方便后续 install 或者直接提取
+            "--disable-all-programs",
+            "--disable-shared",
+            "--enable-static",
+            "--enable-libsmartcols",   // 依赖项
+            "--enable-fallocate",
+            "--enable-libmount",
+            "--enable-libblkid",
+            "--enable-losetup",
+            "--enable-fstrim",
+            "--disable-nls",           // 禁用多语言支持，减小体积
+            "--without-python",
+            "--without-tinfo",
+            "--without-ncurses",
+            "--without-selinux",
+            "--without-smack",
+            "--without-systemd",
+            "--without-udev",
+            "ac_cv_func_setns=yes",
+            "ac_cv_func_statx=no",
+            "ac_cv_func_unshare=yes",
+            "ac_cv_func_uselocale=no",
+            "ac_cv_type_struct_statx=no",
+        )
+
+        if (abi == "armeabi-v7a" || abi == "x86") {
+            logger.lifecycle("Disabling year2038 support for 32-bit ABI: $abi")
+            configureCmd.add("--disable-year2038")
+        }
+        
+        // 将 CFLAGS/LDFLAGS 作为参数传递给 configure，确保它们被正确识别
+        // -static 对于生成可移植的 Android 二进制文件至关重要
+        configureCmd.add("CFLAGS=-O3 -fPIE -static")
+        configureCmd.add("LDFLAGS=-static -s") // -s 自动 strip
+
+        // 执行 Configure
+        runCommand(configureCmd, buildDirAbi, env)
+
+        // 8. 执行 Make
+        // 只需要编译目标工具
+        val makeCmd = listOf(
+            "make", 
+            "-j${Runtime.getRuntime().availableProcessors()}", 
+            "fallocate", "losetup", "fstrim"
+        )
+        runCommand(makeCmd, buildDirAbi, env)
+
+        // 9. 提取产物
+        targetTools.forEach { (toolName, relativePath) ->
+            // 注意：某些工具可能在 .libs 隐藏目录下（libtool 的行为），或者在根目录下
+            // 通常静态编译后直接在 buildDirAbi 下或者是 子目录 下
+            // util-linux 结构通常是 buildDirAbi/fallocate (如果是直接生成) 或者 buildDirAbi/sys-utils/fallocate
+            // 这里我们做一个简单的查找策略
+            
+            var builtBinary = File(buildDirAbi, relativePath)
+            
+            // 如果不在根目录，尝试在 standard locations 查找 (util-linux 源码结构)
+            if (!builtBinary.exists()) {
+                val subDir = when(toolName) {
+                    "fallocate", "fstrim", "losetup" -> "sys-utils"
+                    else -> ""
+                }
+                builtBinary = File(buildDirAbi, "$subDir/$toolName")
+            }
+
+            // 再次检查 .libs (libtool 生成的 wrapper 对应的真实二进制通常在这里，但如果是 -static 则不一定)
+            if (!builtBinary.exists()) {
+                 logger.error("Could not locate built binary for $toolName in $buildDirAbi")
+            } else {
+                val outputFile = File(binDir, "$toolName-${moduleId}-${target}")
+                builtBinary.copyTo(outputFile, overwrite = true)
+                logger.lifecycle("Copied $outputFile")
+                
+                // 可选：再次 strip 确保体积最小
+                runCommand(listOf(stripPath, "--strip-all", outputFile.absolutePath), binDir, env)
+            }
+        }
+
+        // 清理 (可选)
+        // buildDirAbi.deleteRecursively()
+    }
+}
+
+// 辅助函数：支持传递环境变量
+fun runCommand(cmd: List<String>, workingDir: File, env: Map<String, String>) {
+    logger.info("Executing: ${cmd.joinToString(" ")} in $workingDir")
+    val pb = ProcessBuilder(cmd)
+        .directory(workingDir)
+        .redirectErrorStream(true)
+    
+    // 合并环境变量
+    pb.environment().putAll(env)
+    
+    val process = pb.start()
+    
+    // 读取输出流防止缓冲区阻塞
+    process.inputStream.bufferedReader().use { reader ->
+        reader.forEachLine { line ->
+            // 可以根据需要调整日志级别，防止 spam
+             println("[util-linux] $line") 
+        }
+    }
+
+    val exitCode = process.waitFor()
+    if (exitCode != 0) {
+        throw RuntimeException("Command failed with exit code $exitCode: ${cmd.joinToString(" ")}")
+    }
+}
+
 listOf("debug", "release").forEach { variantName ->
     val variantLowered = variantName.lowercase()
     val variantCapped = variantName.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
@@ -138,6 +381,8 @@ listOf("debug", "release").forEach { variantName ->
         doLast {
             compileLogmonitor(variantName, layout.buildDirectory.get().asFile)
             compileFilewatcher(variantName, layout.buildDirectory.get().asFile)
+            compileF2fspin(variantName, layout.buildDirectory.get().asFile)
+            compileUtilLinux(variantName, layout.buildDirectory.get().asFile)
         }
     }
 

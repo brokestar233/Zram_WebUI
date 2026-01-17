@@ -102,3 +102,4 @@ docs/latex/
 build
 .cxx
 .kotlin
+.vscode-ctags

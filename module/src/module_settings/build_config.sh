@@ -1,5 +1,5 @@
 #!/system/bin/sh
-action_id="0zram"
+action_id="zram"
 action_name="Zram_WebUI"
 action_author="BrokeStar"
 action_description="A web UI for Zram"
