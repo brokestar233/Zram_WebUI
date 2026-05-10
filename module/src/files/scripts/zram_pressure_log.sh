@@ -1,177 +1,222 @@
-#!system/bin/sh
+#!/system/bin/sh
 
-MODDIR=$1
+MODDIR="$1"
+ZRAM_DEV="/sys/block/zram0"
+PRESSURE_NODE="$ZRAM_DEV/pressure"
+DISKSIZE_NODE="$ZRAM_DEV/disksize"
+MM_STAT_NODE="$ZRAM_DEV/mm_stat"
+LOG_FILE="$MODDIR/memory_zram_pressure.log"
+COUNT_FILE="$MODDIR/memory_zram_count"
+AVG_FILE="$MODDIR/average_pressure.conf"
+MAX_LINES=100
+SAMPLE_INTERVAL=60
+WARMUP_SECONDS=300
+AVERAGE_EVERY=5
 
-# 获取系统内存使用率（百分比）
 get_memory_pressure() {
-    local total_mem=0
-    local free_mem=0
-    local available_mem=0
-    local used_mem=0
-    local pressure=0
+    local total_mem available_mem used_mem pressure
 
-    # 读取 /proc/meminfo
-    if [ -f "/proc/meminfo" ]; then
-        total_mem=$(grep "^MemTotal:" /proc/meminfo | awk '{print $2}')
-        available_mem=$(grep "^MemAvailable:" /proc/meminfo | awk '{print $2}')
-
-        # 使用 MemAvailable 计算内存使用率
-        if [ "$available_mem" -gt 0 ] && [ "$total_mem" -gt 0 ]; then
-            used_mem=$((total_mem - available_mem))
-            pressure=$((used_mem * 100 / total_mem))
-            # 限制在 0-100
-            if [ "$pressure" -gt 100 ]; then
-                pressure=100
-            fi
-            echo "$pressure"
-            return 0
-        fi
-    fi
-
-    return 1
-}
-
-# 获取 Zram 使用率（百分比）
-get_zram_pressure() {
-    local zram_sysfs_path="/sys/block/zram0"  # 假设使用 zram0，可根据实际修改
-    local orig_data_size=0
-    local zram_total_size=0
-    local pressure=0
-
-    # 检查 mm_stat 文件是否存在
-    if [ ! -f "$zram_sysfs_path/mm_stat" ]; then
+    if [ ! -f /proc/meminfo ]; then
         return 1
     fi
 
-    # 读取 mm_stat，获取未压缩数据大小（第一个字段，orig_data_size，单位：bytes）
-    orig_data_size=$(awk '{print $1}' "$zram_sysfs_path/mm_stat" 2>/dev/null)
-    if [ -z "$orig_data_size" ] || ! [[ "$orig_data_size" =~ ^[0-9]+$ ]]; then
-        return 1
-    fi
+    total_mem=$(awk '/^MemTotal:/ {print $2}' /proc/meminfo)
+    available_mem=$(awk '/^MemAvailable:/ {print $2}' /proc/meminfo)
 
-    # 读取 ZRAM 设备总大小（disksize，单位：bytes）
-    if [ -f "$zram_sysfs_path/disksize" ]; then
-        zram_total_size=$(cat "$zram_sysfs_path/disksize" 2>/dev/null)
-        if [ -z "$zram_total_size" ] || ! [[ "$zram_total_size" =~ ^[0-9]+$ ]]; then
+    case "$total_mem:$available_mem" in
+        ''*|*'::'*|*:)
             return 1
-        fi
-    else
+            ;;
+    esac
+
+    if [ "$total_mem" -le 0 ] || [ "$available_mem" -lt 0 ]; then
         return 1
     fi
 
-    # 计算 ZRAM 使用率
-    if [ "$zram_total_size" -gt 0 ]; then
-        pressure=$((orig_data_size * 100 / zram_total_size))
-        # 限制在 0-100
-        if [ "$pressure" -gt 100 ]; then
-            pressure=100
-        elif [ "$pressure" -lt 0 ]; then
-            pressure=0
-        fi
-        echo "$pressure"
-        return 0
-    else
-        return 1
+    used_mem=$((total_mem - available_mem))
+    pressure=$((used_mem * 100 / total_mem))
+
+    if [ "$pressure" -gt 100 ]; then
+        pressure=100
+    elif [ "$pressure" -lt 0 ]; then
+        pressure=0
     fi
+
+    echo "$pressure"
+    return 0
 }
 
-# 更新计数文件
+get_zram_pressure() {
+    local orig_data_size zram_total_size pressure
+
+    if [ ! -f "$MM_STAT_NODE" ] || [ ! -f "$DISKSIZE_NODE" ]; then
+        return 1
+    fi
+
+    orig_data_size=$(awk '{print $1}' "$MM_STAT_NODE" 2>/dev/null)
+    zram_total_size=$(cat "$DISKSIZE_NODE" 2>/dev/null)
+
+    case "$orig_data_size:$zram_total_size" in
+        *[!0-9:]*|:*:*)
+            return 1
+            ;;
+    esac
+
+    if [ -z "$orig_data_size" ] || [ -z "$zram_total_size" ]; then
+        return 1
+    fi
+
+    if [ "$zram_total_size" -le 0 ]; then
+        return 1
+    fi
+
+    pressure=$((orig_data_size * 100 / zram_total_size))
+
+    if [ "$pressure" -gt 100 ]; then
+        pressure=100
+    elif [ "$pressure" -lt 0 ]; then
+        pressure=0
+    fi
+
+    echo "$pressure"
+    return 0
+}
+
+get_last_disksize() {
+    local disksize
+
+    if [ ! -f "$DISKSIZE_NODE" ]; then
+        return 1
+    fi
+
+    disksize=$(cat "$DISKSIZE_NODE" 2>/dev/null)
+    case "$disksize" in
+        ''|*[!0-9]*)
+            return 1
+            ;;
+    esac
+
+    echo "$disksize"
+    return 0
+}
+
+ensure_state_files() {
+    [ -d "$MODDIR" ] || mkdir -p "$MODDIR"
+
+    [ -f "$LOG_FILE" ] || : > "$LOG_FILE"
+    [ -f "$COUNT_FILE" ] || echo 0 > "$COUNT_FILE"
+
+    chmod 644 "$LOG_FILE" "$COUNT_FILE" 2>/dev/null
+}
+
+append_log_line() {
+    local line="$1"
+    local current_lines
+
+    if [ -f "$LOG_FILE" ]; then
+        current_lines=$(wc -l < "$LOG_FILE" 2>/dev/null)
+    else
+        current_lines=0
+    fi
+
+    if [ -z "$current_lines" ]; then
+        current_lines=0
+    fi
+
+    if [ "$current_lines" -ge "$MAX_LINES" ]; then
+        tail -n $((MAX_LINES - 1)) "$LOG_FILE" > "$LOG_FILE.tmp" 2>/dev/null
+        mv "$LOG_FILE.tmp" "$LOG_FILE"
+    fi
+
+    echo "$line" >> "$LOG_FILE"
+}
+
 update_count() {
-    local count_file="$MODDIR/memory_zram_count"
     local count=0
 
-    # 如果计数文件存在，读取当前计数
-    if [ -f "$count_file" ]; then
-        count=$(cat "$count_file")
+    if [ -f "$COUNT_FILE" ]; then
+        count=$(cat "$COUNT_FILE" 2>/dev/null)
     fi
 
-    # 增加计数
-    count=$((count + 1))
-    echo "$count" > "$count_file"
+    case "$count" in
+        ''|*[!0-9]*)
+            count=0
+            ;;
+    esac
 
+    count=$((count + 1))
+    echo "$count" > "$COUNT_FILE"
     echo "$count"
 }
 
-# 计算平均值并输出到新文件
 calculate_average() {
-    local output_file="$MODDIR/memory_zram_pressure.log"
-    local avg_file="$MODDIR/average_pressure.conf"
     local mem_sum=0
     local zram_sum=0
+    local size_sum=0
     local count=0
+    local mem zram size
     local mem_avg=0
     local zram_avg=0
+    local size_avg=0
 
-    # 读取日志文件，计算总和
-    while IFS=: read -r mem zram || [ -n "$mem" ]; do # The || [ -n "$mem" ] handles the last line if it doesn't end with a newline
+    [ -f "$LOG_FILE" ] || return 1
+
+    while IFS=: read -r mem zram size || [ -n "$mem" ]; do
+        case "$mem:$zram:$size" in
+            *[!0-9:]*|'::'|''*)
+                continue
+                ;;
+        esac
+
+        [ -n "$mem" ] || continue
+        [ -n "$zram" ] || continue
+        [ -n "$size" ] || continue
+
         mem_sum=$((mem_sum + mem))
         zram_sum=$((zram_sum + zram))
+        size_sum=$((size_sum + size))
         count=$((count + 1))
-    done < "$output_file"
+    done < "$LOG_FILE"
 
-    # 计算平均值
-    if [ "$count" -gt 0 ]; then
-        mem_avg=$((mem_sum / count))
-        zram_avg=$((zram_sum / count))
+    if [ "$count" -le 0 ]; then
+        return 1
     fi
 
-    # 输出平均值到新文件
-    echo "$mem_avg:$zram_avg" > "$avg_file"
-    chmod 644 "$avg_file"
+    mem_avg=$((mem_sum / count))
+    zram_avg=$((zram_sum / count))
+    size_avg=$((size_sum / count))
 
-    : > "$MODDIR/memory_zram_count" # Clear the count file
+    pressure="$mem_avg:$zram_avg:$size_avg"
+    echo "$pressure" > "$AVG_FILE"
+    chmod 644 "$AVG_FILE" 2>/dev/null
+
+    echo 0 > "$COUNT_FILE"
 }
 
-# 主函数
-main() {
-    local output_file="$MODDIR/memory_zram_pressure.log"
-    local max_lines=100
-    local mem_pressure
-    local zram_pressure
+sample_once() {
+    local mem_pressure zram_pressure last_disksize pressure count
 
-    # 获取内存压力和Zram压力
-    mem_pressure=$(get_memory_pressure)
-    zram_pressure=$(get_zram_pressure)
+    mem_pressure=$(get_memory_pressure) || return 1
+    zram_pressure=$(get_zram_pressure) || return 1
+    last_disksize=$(get_last_disksize) || return 1
 
-    # 格式化输出
-    local output_line="$mem_pressure:$zram_pressure"
+    pressure="$mem_pressure:$zram_pressure:$last_disksize"
+    append_log_line "$pressure"
 
-    # 如果输出文件不存在，创建它
-    if [ ! -f "$output_file" ]; then
-        touch "$output_file"
-        chmod 644 "$output_file"
-    fi
-
-    # 检查当前行数
-    local current_lines
-    current_lines=$(wc -l < "$output_file")
-
-    # 如果行数超过最大限制，移除最旧的一行
-    if [ "$current_lines" -ge "$max_lines" ]; then
-        # Using sed for in-place line deletion, or tail for simplicity
-        # sed -i '1d' "$output_file" # This is GNU sed specific.
-        # For POSIX sh compatibility, recreate the file with tail
-        tail -n $((max_lines - 1)) "$output_file" > "$output_file.tmp"
-        mv "$output_file.tmp" "$output_file"
-    fi
-
-    # 追加新数据到文件
-    echo "$output_line" >> "$output_file"
-
-    # 更新计数并检查是否达到5次
-    local count
     count=$(update_count)
-    if [ "$count" -ge 5 ]; then
+    if [ "$count" -ge "$AVERAGE_EVERY" ]; then
         calculate_average
     fi
 }
 
-# 不记录开机前5分钟数据
-sleep 300
+main_loop() {
+    ensure_state_files
+    sleep "$WARMUP_SECONDS"
 
-# 调用主函数
-while true
-do
-    main
-    sleep 60
-done
+    while true; do
+        sample_once
+        sleep "$SAMPLE_INTERVAL"
+    done
+}
+
+main_loop
