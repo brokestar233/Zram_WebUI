@@ -3,13 +3,12 @@
  * 基于MD3设计系统重构的统一样式
  */
 /* 导入MD3基础样式系统 */
-@import url('md3.css');
-@import url('pages/about.css');
-@import url('pages/settings.css');
-@import url('pages/status.css');
-@import url('pages/logs.css');
-@import url('animations.css');
-@import url('components.css');
+@import url("md3.css");
+@import url("pages/about.css");
+@import url("pages/settings.css");
+@import url("pages/status.css");
+@import url("animations.css");
+@import url("components.css");
 
 /* ===== 基础变量 ===== */
 :root {
@@ -21,7 +20,7 @@
   --border-radius-m: 14px;
   --border-radius-s: 12px;
   --scrollbar-width: 6px;
-  
+
   /* 标准间距变量 */
   --spacing-xs: 4px;
   --spacing-s: 8px;
@@ -98,7 +97,9 @@
   padding-inline: var(--spacing-xs) var(--spacing-m);
   background-color: transparent;
   color: var(--on-surface);
-  transition: background-color 0.4s ease, box-shadow 0.4s ease;
+  transition:
+    background-color 0.4s ease,
+    box-shadow 0.4s ease;
   border: none;
   display: flex;
   align-items: center;
@@ -148,6 +149,15 @@
   gap: var(--spacing-xs);
   margin-left: auto;
   z-index: 1;
+}
+
+.page-actions {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: var(--spacing-xs);
+  flex-wrap: nowrap;
+  flex-shrink: 0;
 }
 
 /* ===== 主内容区域 ===== */
@@ -225,7 +235,9 @@
   font-size: 25px;
   padding: 3px 18px;
   border-radius: var(--border-radius-xl);
-  transition: all var(--tra), padding 200ms cubic-bezier(0.2, 0, 0, 1);
+  transition:
+    all var(--tra),
+    padding 200ms cubic-bezier(0.2, 0, 0, 1);
 }
 
 .nav-item span:not(.material-symbols-rounded) {
@@ -252,7 +264,11 @@
 .nav-item.active .material-symbols-rounded {
   background-color: var(--secondary-container);
   color: var(--primary);
-  font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+  font-variation-settings:
+    "FILL" 1,
+    "wght" 400,
+    "GRAD" 0,
+    "opsz" 24;
 }
 
 .nav-item:hover .material-symbols-rounded {
@@ -282,7 +298,11 @@
   -ms-overflow-style: none;
 }
 
-html, body, #main-content, .language-options, .app-nav {
+html,
+body,
+#main-content,
+.language-options,
+.app-nav {
   scroll-behavior: smooth;
 }
 
@@ -318,7 +338,7 @@ html, body, #main-content, .language-options, .app-nav {
   }
 
   .app-header {
-    display: none !important;
+    display: none;
   }
 
   .app-nav {

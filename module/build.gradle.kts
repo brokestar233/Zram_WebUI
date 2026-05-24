@@ -193,9 +193,18 @@ fun compileUtilLinux(variantName: String, buildDir: File) {
         return
     }
     
-    // 检查是否需要先运行 ./autogen.sh (如果是从 git clone 下来的通常需要)
-    if (!File(utilLinuxSrcDir, "configure").exists()) {
-        logger.lifecycle("configure script not found, running autogen.sh...")
+    // util-linux 是 git 子模块时，始终重新生成 autotools 文件，避免宿主机 libtool
+    // 版本与仓库中已生成的 configure/aclocal.m4 不一致，导致 LT_INIT mismatch。
+    val isGitCheckout = File(utilLinuxSrcDir, ".git").exists()
+    val configureScript = File(utilLinuxSrcDir, "configure")
+    if (isGitCheckout || !configureScript.exists()) {
+        logger.lifecycle(
+            if (isGitCheckout) {
+                "util-linux is a git checkout, regenerating autotools files with ./autogen.sh..."
+            } else {
+                "configure script not found, running autogen.sh..."
+            }
+        )
         runCommand(listOf("./autogen.sh"), utilLinuxSrcDir, emptyMap())
     }
 
@@ -230,6 +239,10 @@ fun compileUtilLinux(variantName: String, buildDir: File) {
         logger.lifecycle("Compiling util-linux tools for $abi (API $apiLevel)...")
 
         val buildDirAbi = File(utilLinuxSrcDir, "build_$abi")
+        if (buildDirAbi.exists()) {
+            logger.lifecycle("Cleaning previous util-linux build directory: $buildDirAbi")
+            buildDirAbi.deleteRecursively()
+        }
         buildDirAbi.mkdirs()
 
         // 5. 配置编译器前缀和标志
@@ -369,6 +382,20 @@ fun runCommand(cmd: List<String>, workingDir: File, env: Map<String, String>) {
     }
 }
 
+val lintWebUI = tasks.register<Exec>("lintWebUI") {
+    group = "verification"
+    description = "使用 Biome 校验 WebUI 源码"
+    workingDir = projectDir
+    commandLine("npx", "@biomejs/biome", "check", "${projectDir}/src/webroot")
+}
+
+val formatWebUI = tasks.register<Exec>("formatWebUI") {
+    group = "formatting"
+    description = "使用 Biome 自动修复 WebUI 源码格式和语法错误"
+    workingDir = projectDir
+    commandLine("npx", "@biomejs/biome", "check", "--write", "${projectDir}/src/webroot")
+}
+
 listOf("debug", "release").forEach { variantName ->
     val variantLowered = variantName.lowercase()
     val variantCapped = variantName.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
@@ -391,7 +418,8 @@ listOf("debug", "release").forEach { variantName ->
         dependsOn(
         //    ":dex:assemble$variantCapped",
         //    ":zygisk:assemble$variantCapped",
-            compileNativeTask
+            compileNativeTask,
+            lintWebUI
         )
         into(moduleDir)
         from("$projectDir/src") {

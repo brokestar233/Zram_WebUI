@@ -23,7 +23,6 @@
   "CONFIRM_REFRESH_UNSAVED": "Есть несохраненные изменения, вы уверены, что хотите обновить?",
 
   "NAV_ABOUT": "О программе",
-  "NAV_LOGS": "Логи",
   "NAV_SETTINGS": "Настройки",
   "NAV_STATUS": "Статус",
 
@@ -129,5 +128,38 @@
 
   "CHECKING_UPDATE": "Проверка обновлений...",
   "UPDATE_CHECK_FAILED": "Не удалось проверить обновления",
-  "UPDATE_AVAILABLE": "Доступно обновление"
+  "UPDATE_AVAILABLE": "Доступно обновление",
+  "VIEW_UPDATE": "Открыть обновление",
+  "STATUS_OVERVIEW": "Обзор состояния",
+  "MEMORY": "Memory",
+  "PHYSICAL_MEMORY": "Физическая память",
+  "SWAP_PARTITION": "Раздел подкачки",
+  "USED": "Used",
+  "SWAP_CACHED": "SwapCached",
+  "VM_PARAMETERS": "Параметры VM",
+  "ENABLED_SWAP": "Включенный Swap",
+  "PATH": "Путь",
+  "TYPE": "Тип",
+  "SIZE": "Размер",
+  "PRIORITY": "Приоритет",
+  "NO_SWAP_DEVICE": "Не найдено включенных устройств swap",
+  "RAW_DATA_SIZE": "Размер исходных данных",
+  "COMPRESSED_SIZE": "Размер после сжатия",
+  "PHYSICAL_MEMORY_USED": "Использование физической памяти",
+  "COMPRESSION_RATIO": "Степень сжатия",
+  "BACKING_DEVICE": "Устройство записи",
+  "TOTAL_READ": "Всего прочитано",
+  "TOTAL_WRITE": "Всего записано",
+  "CURRENT_RESIDENT_DISK": "Текущий объем на диске",
+  "ZRAM_STATUS_EXTENDED_MEMORY": "Состояние Zram / Расширенная память",
+  "SWAP_IO": "SWAP IO",
+  "SWAP_IN": "Чтение из SWAP (pswpin)",
+  "SWAP_OUT": "Запись в SWAP (pswpout)",
+
+  "NOT_SET": "Не задано",
+  "ALREADY_SELECTED": "Уже выбрано",
+  "SIZE_FORMAT_HINT": "Поддерживаемые форматы: auto, 16G, 512M, байты",
+  "FEATURE_NOT_SUPPORTED_AUTO_SIZE": "Устройство не поддерживает автоматический размер",
+  "FEATURE_NOT_SUPPORTED_RECOMPRESSD": "Устройство не поддерживает повторное сжатие",
+  "FEATURE_NOT_SUPPORTED_ZSTD_LEVEL": "Устройство не поддерживает уровень сжатия ZSTD"
 }

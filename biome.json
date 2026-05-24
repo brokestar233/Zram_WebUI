@@ -1,0 +1,64 @@
+{
+  "$schema": "https://biomejs.dev/schemas/2.4.15/schema.json",
+  "files": {
+    "includes": [
+      "module/src/webroot/**",
+      "!module/src/webroot/**/*.json",
+      "!module/src/webroot/config.json",
+      "!module/src/webroot/pages.json",
+      "!module/src/webroot/translations/**",
+      "!module/src/webroot/css/md3.css"
+    ]
+  },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "recommended": true,
+      "correctness": {
+        "noUnusedVariables": "warn",
+        "noUnusedImports": "warn",
+        "noConstAssign": "error",
+        "noUnreachable": "error",
+        "noInvalidConstructorSuper": "error",
+        "noUndeclaredVariables": "warn"
+      },
+      "suspicious": {
+        "noExplicitAny": "off",
+        "noGlobalAssign": "error",
+        "noShadowRestrictedNames": "error",
+        "useIsArray": "warn"
+      },
+      "style": {
+        "noUselessElse": "warn",
+        "useConst": "warn",
+        "useTemplate": "warn",
+        "useDefaultParameterLast": "warn"
+      }
+    }
+  },
+  "formatter": {
+    "enabled": true,
+    "indentStyle": "space",
+    "indentWidth": 2,
+    "lineWidth": 120
+  },
+  "javascript": {
+    "globals": ["Core", "ksu", "I18n", "UI", "Router", "ThemeManager", "CSSLoader", "MMRL", "PreloadManager", "App", "app", "logsDisplay"],
+    "formatter": {
+      "quoteStyle": "single",
+      "trailingCommas": "none",
+      "semicolons": "always",
+      "arrowParentheses": "asNeeded"
+    }
+  },
+  "css": {
+    "linter": {
+      "enabled": true
+    },
+    "formatter": {
+      "enabled": true,
+      "indentStyle": "space",
+      "indentWidth": 2
+    }
+  }
+}

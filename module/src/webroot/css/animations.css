@@ -43,41 +43,41 @@
 }
 /* 标题和操作按钮动画 */
 @keyframes headerFadeOut {
-    0% {
-        opacity: 1;
-        transform: translateY(0);
-        visibility: visible;
-    }
-    100% {
-        opacity: 0;
-        transform: translateY(-10px);
-        visibility: hidden;
-    }
+  0% {
+    opacity: 1;
+    transform: translateY(0);
+    visibility: visible;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-10px);
+    visibility: hidden;
+  }
 }
 
 @keyframes headerFadeIn {
-    0% {
-        opacity: 0;
-        transform: translateY(10px);
-        visibility: visible;
-    }
-    100% {
-        opacity: 1;
-        transform: translateY(0);
-        visibility: visible;
-    }
+  0% {
+    opacity: 0;
+    transform: translateY(10px);
+    visibility: visible;
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+    visibility: visible;
+  }
 }
 
 .header-title.fade-out,
 .page-actions.fade-out {
-    animation: headerFadeOut 200ms ease-out forwards;
-    will-change: transform, opacity, visibility;
+  animation: headerFadeOut 200ms ease-out forwards;
+  will-change: transform, opacity, visibility;
 }
 
 .header-title.fade-in,
 .page-actions.fade-in {
-    animation: headerFadeIn 250ms ease-out forwards;
-    will-change: transform, opacity, visibility;
+  animation: headerFadeIn 250ms ease-out forwards;
+  will-change: transform, opacity, visibility;
 }
 @keyframes spin {
   to {
@@ -159,15 +159,14 @@
 
 /* Apply landscape animations in landscape orientation */
 @media (orientation: landscape) {
-    .toast.show {
-        animation: toastSlideInLandscape 250ms cubic-bezier(0.3, 0, 0.8, 0.15) forwards;
-    }
+  .toast.show {
+    animation: toastSlideInLandscape 250ms cubic-bezier(0.3, 0, 0.8, 0.15) forwards;
+  }
 
-    .toast.hide {
-        animation: toastSlideOutLandscape 150ms cubic-bezier(0.3, 0, 0.8, 0.15) forwards;
-    }
+  .toast.hide {
+    animation: toastSlideOutLandscape 150ms cubic-bezier(0.3, 0, 0.8, 0.15) forwards;
+  }
 }
-
 
 /* 语言选择器动画 */
 @keyframes languageSelectorFadeIn {
@@ -361,10 +360,10 @@
 }
 @keyframes navPaddingExpand {
   from {
-      padding: 3px 8px;
+    padding: 3px 8px;
   }
   to {
-      padding: 3px 18px;
+    padding: 3px 18px;
   }
 }
 
@@ -377,7 +376,7 @@
 }
 
 .app-nav.visible {
-  animation: navSlideIn 200ms cubic-bezier(0.68, 0, 0.27, 0)  forwards;
+  animation: navSlideIn 200ms cubic-bezier(0.68, 0, 0.27, 0) forwards;
 }
 
 /* 导航项文字动画 */

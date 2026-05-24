@@ -78,6 +78,66 @@
           }
         }
       ]
+    },
+    "size": {
+      "options": [
+        {
+          "value": "auto",
+          "label": {
+            "en": "Auto",
+            "zh": "自动",
+            "ru": "Авто"
+          }
+        },
+        {
+          "value": "4G",
+          "label": {
+            "en": "4 GB",
+            "zh": "4 GB",
+            "ru": "4 ГБ"
+          }
+        },
+        {
+          "value": "8G",
+          "label": {
+            "en": "8 GB",
+            "zh": "8 GB",
+            "ru": "8 ГБ"
+          }
+        },
+        {
+          "value": "12G",
+          "label": {
+            "en": "12 GB",
+            "zh": "12 GB",
+            "ru": "12 ГБ"
+          }
+        },
+        {
+          "value": "16G",
+          "label": {
+            "en": "16 GB",
+            "zh": "16 GB",
+            "ru": "16 ГБ"
+          }
+        },
+        {
+          "value": "24G",
+          "label": {
+            "en": "24 GB",
+            "zh": "24 GB",
+            "ru": "24 ГБ"
+          }
+        },
+        {
+          "value": "32G",
+          "label": {
+            "en": "32 GB",
+            "zh": "32 GB",
+            "ru": "32 ГБ"
+          }
+        }
+      ]
     }
   }
 }

@@ -23,7 +23,6 @@
   "CONFIRM_REFRESH_UNSAVED": "有未保存的更改，确定要刷新吗？",
 
   "NAV_ABOUT": "关于",
-  "NAV_LOGS": "日志",
   "NAV_SETTINGS": "设置",
   "NAV_STATUS": "状态",
 
@@ -129,5 +128,38 @@
 
   "CHECKING_UPDATE": "正在检查更新...",
   "UPDATE_CHECK_FAILED": "更新检查失败",
-  "UPDATE_AVAILABLE": "有可用的更新"
+  "UPDATE_AVAILABLE": "有可用的更新",
+  "VIEW_UPDATE": "查看更新",
+  "STATUS_OVERVIEW": "状态总览",
+  "MEMORY": "Memory",
+  "PHYSICAL_MEMORY": "物理内存",
+  "SWAP_PARTITION": "交换分区",
+  "USED": "Used",
+  "SWAP_CACHED": "SwapCached",
+  "VM_PARAMETERS": "VM 参数",
+  "ENABLED_SWAP": "启用的 Swap",
+  "PATH": "路径",
+  "TYPE": "类型",
+  "SIZE": "大小",
+  "PRIORITY": "顺序",
+  "NO_SWAP_DEVICE": "未检测到已启用的 Swap",
+  "RAW_DATA_SIZE": "原始数据大小",
+  "COMPRESSED_SIZE": "压缩后的大小",
+  "PHYSICAL_MEMORY_USED": "物理内存占用",
+  "COMPRESSION_RATIO": "压缩比",
+  "BACKING_DEVICE": "回写块",
+  "TOTAL_READ": "总读取",
+  "TOTAL_WRITE": "总写入",
+  "CURRENT_RESIDENT_DISK": "当前驻留磁盘量",
+  "ZRAM_STATUS_EXTENDED_MEMORY": "Zram 状态 / 扩展内存",
+  "SWAP_IO": "SWAP IO",
+  "SWAP_IN": "从 SWAP 读入 (pswpin)",
+  "SWAP_OUT": "写入 SWAP (pswpout)",
+
+  "NOT_SET": "未设置",
+  "ALREADY_SELECTED": "已被选用",
+  "SIZE_FORMAT_HINT": "支持格式: auto, 16G, 512M, 纯字节数",
+  "FEATURE_NOT_SUPPORTED_AUTO_SIZE": "设备不支持 auto 自动大小",
+  "FEATURE_NOT_SUPPORTED_RECOMPRESSD": "设备不支持重压缩功能",
+  "FEATURE_NOT_SUPPORTED_ZSTD_LEVEL": "设备不支持 ZSTD 压缩等级设置"
 }

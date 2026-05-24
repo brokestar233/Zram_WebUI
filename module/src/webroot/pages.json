@@ -10,14 +10,6 @@
       "i18n_key": "NAV_STATUS"
     },
     {
-      "id": "logs",
-      "name": "日志",
-      "icon": "article",
-      "module": "LogsPage",
-      "file": "pages/logs.js",
-      "i18n_key": "NAV_LOGS"
-    },
-    {
       "id": "settings",
       "name": "设置",
       "icon": "settings",
