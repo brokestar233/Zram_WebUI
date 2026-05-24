@@ -23,8 +23,25 @@ get_memory_pressure() {
     total_mem=$(awk '/^MemTotal:/ {print $2}' /proc/meminfo)
     available_mem=$(awk '/^MemAvailable:/ {print $2}' /proc/meminfo)
 
+    if [ -z "$available_mem" ]; then
+        available_mem=$(awk '
+            /^MemFree:/ { mem_free=$2 }
+            /^Buffers:/ { buffers=$2 }
+            /^Cached:/ { cached=$2 }
+            /^SReclaimable:/ { sreclaimable=$2 }
+            /^Shmem:/ { shmem=$2 }
+            END {
+                print mem_free + buffers + cached + sreclaimable - shmem
+            }
+        ' /proc/meminfo)
+    fi
+
+    if [ -z "$total_mem" ] || [ -z "$available_mem" ]; then
+        return 1
+    fi
+
     case "$total_mem:$available_mem" in
-        ''*|*'::'*|*:)
+        *[!0-9:]*|*::* )
             return 1
             ;;
     esac
@@ -50,7 +67,8 @@ get_zram_pressure() {
     local orig_data_size zram_total_size pressure
 
     if [ ! -f "$MM_STAT_NODE" ] || [ ! -f "$DISKSIZE_NODE" ]; then
-        return 1
+        echo 0
+        return 0
     fi
 
     orig_data_size=$(awk '{print $1}' "$MM_STAT_NODE" 2>/dev/null)
@@ -58,16 +76,19 @@ get_zram_pressure() {
 
     case "$orig_data_size:$zram_total_size" in
         *[!0-9:]*|:*:*)
-            return 1
+            echo 0
+            return 0
             ;;
     esac
 
     if [ -z "$orig_data_size" ] || [ -z "$zram_total_size" ]; then
-        return 1
+        echo 0
+        return 0
     fi
 
     if [ "$zram_total_size" -le 0 ]; then
-        return 1
+        echo 0
+        return 0
     fi
 
     pressure=$((orig_data_size * 100 / zram_total_size))
@@ -86,13 +107,15 @@ get_last_disksize() {
     local disksize
 
     if [ ! -f "$DISKSIZE_NODE" ]; then
-        return 1
+        echo 0
+        return 0
     fi
 
     disksize=$(cat "$DISKSIZE_NODE" 2>/dev/null)
     case "$disksize" in
         ''|*[!0-9]*)
-            return 1
+            echo 0
+            return 0
             ;;
     esac
 
@@ -101,12 +124,29 @@ get_last_disksize() {
 }
 
 ensure_state_files() {
+    local avg_value avg_first avg_second avg_third
+
     [ -d "$MODDIR" ] || mkdir -p "$MODDIR"
 
     [ -f "$LOG_FILE" ] || : > "$LOG_FILE"
     [ -f "$COUNT_FILE" ] || echo 0 > "$COUNT_FILE"
+    [ -f "$AVG_FILE" ] || echo "50:50:0" > "$AVG_FILE"
 
-    chmod 644 "$LOG_FILE" "$COUNT_FILE" 2>/dev/null
+    avg_value=$(cat "$AVG_FILE" 2>/dev/null)
+    case "$avg_value" in
+        [0-9]*:[0-9]*:[0-9]*)
+            ;;
+        [0-9]*:[0-9]*)
+            avg_first=${avg_value%%:*}
+            avg_second=${avg_value#*:}
+            echo "$avg_first:$avg_second:0" > "$AVG_FILE"
+            ;;
+        *)
+            echo "50:50:0" > "$AVG_FILE"
+            ;;
+    esac
+
+    chmod 644 "$LOG_FILE" "$COUNT_FILE" "$AVG_FILE" 2>/dev/null
 }
 
 append_log_line() {
@@ -152,29 +192,34 @@ update_count() {
 calculate_average() {
     local mem_sum=0
     local zram_sum=0
-    local size_sum=0
     local count=0
-    local mem zram size
+    local mem zram size extra
     local mem_avg=0
     local zram_avg=0
-    local size_avg=0
+    local last_disksize=0
 
     [ -f "$LOG_FILE" ] || return 1
 
-    while IFS=: read -r mem zram size || [ -n "$mem" ]; do
-        case "$mem:$zram:$size" in
-            *[!0-9:]*|'::'|''*)
+    while IFS=: read -r mem zram size extra || [ -n "$mem" ]; do
+        case "$mem:$zram" in
+            *[!0-9:]*|*::* )
                 continue
                 ;;
         esac
 
         [ -n "$mem" ] || continue
         [ -n "$zram" ] || continue
-        [ -n "$size" ] || continue
+
+        if [ -n "$size" ]; then
+            case "$size${extra:+:$extra}" in
+                *[!0-9:]*|*::* )
+                    continue
+                    ;;
+            esac
+        fi
 
         mem_sum=$((mem_sum + mem))
         zram_sum=$((zram_sum + zram))
-        size_sum=$((size_sum + size))
         count=$((count + 1))
     done < "$LOG_FILE"
 
@@ -184,9 +229,10 @@ calculate_average() {
 
     mem_avg=$((mem_sum / count))
     zram_avg=$((zram_sum / count))
-    size_avg=$((size_sum / count))
 
-    pressure="$mem_avg:$zram_avg:$size_avg"
+    last_disksize=$(get_last_disksize 2>/dev/null) || last_disksize=0
+
+    pressure="$mem_avg:$zram_avg:$last_disksize"
     echo "$pressure" > "$AVG_FILE"
     chmod 644 "$AVG_FILE" 2>/dev/null
 
@@ -194,13 +240,12 @@ calculate_average() {
 }
 
 sample_once() {
-    local mem_pressure zram_pressure last_disksize pressure count
+    local mem_pressure zram_pressure pressure count
 
-    mem_pressure=$(get_memory_pressure) || return 1
-    zram_pressure=$(get_zram_pressure) || return 1
-    last_disksize=$(get_last_disksize) || return 1
+    mem_pressure=$(get_memory_pressure 2>/dev/null) || mem_pressure=0
+    zram_pressure=$(get_zram_pressure 2>/dev/null) || zram_pressure=0
 
-    pressure="$mem_pressure:$zram_pressure:$last_disksize"
+    pressure="$mem_pressure:$zram_pressure"
     append_log_line "$pressure"
 
     count=$(update_count)
