@@ -4,4 +4,4 @@ version=${versionName}
 versionCode=${versionCode}
 author=BrokeStar
 description=A web UI for Zram
-updateJson=
+updateJson=https://raw.githubusercontent.com/brokestar233/Zram_WebUI/main/update.json

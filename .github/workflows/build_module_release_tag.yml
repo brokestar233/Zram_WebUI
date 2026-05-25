@@ -7,152 +7,97 @@ on:
   workflow_dispatch:
 
 jobs:
-  compress:
+  release:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Install 7z
-        uses: edgarrc/action-7z@v1.0.5
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
 
-      - name: Get current time
-        run: |
-          TIMESTAMP=$(date +'%Y%m%d')
-          echo "CURRENT_TIME=$TIMESTAMP" >> $GITHUB_ENV
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
 
-      - name: Get latest tag
-        id: latest-tag
-        run: |
-          echo "LATEST_TAG=$(git describe --tags $(git rev-list --tags --max-count=1))" >> $GITHUB_ENV
-        
-      - name: Setup Android NDK
-        uses: nttld/setup-ndk@v1
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Set up Android NDK
         id: setup-ndk
+        uses: nttld/setup-ndk@v1
         with:
           ndk-version: r26d
 
-      - name: Start Build
-        run: |
-          . module_settings/config.sh
-          
-          # 创建 module.prop
-          echo "id=${action_id}" > module.prop
-          echo "name=${action_name}" >> module.prop
-          echo "version=${LATEST_TAG}" >> module.prop
-          echo "versionCode=${CURRENT_TIME}" >> module.prop
-          echo "author=${action_author}" >> module.prop
-          echo "description=${action_description}" >> module.prop
-          echo "updateJson=${updateJson}" >> module.prop
-          
-          # 文件替换
-          sed -i "s/20240503/${CURRENT_TIME}/g" webroot/pages/status.js
-          find webroot -name "status.js" -exec sed -i "s/Aurora-Nasa-1\/AMMF/${Github_update_repo}/g" {} \;
-          find files -name "*.sh" -exec sed -i "s/AMMF/${action_id}/g" {} \;
-          find webroot -name "*.js" -exec sed -i "s/AMMF/${action_id}/g" {} \;
-          find src -name "*.cpp" -exec sed -i "s/AMMF2/${action_id}/g" {} \;
-          sed -i "s/AMMF/${action_id}/g" webroot/index.html
-          find webroot/translations -name "*.json" -exec sed -i "s/AMMF/${action_name}/g" {} \;
-          echo "已完成模块ID替换"
-          
-          # 创建 META-INF 目录结构
-          mkdir -p META-INF/com/google/android
-          echo '#MAGISK' > META-INF/com/google/android/updater-script
-          
-          # 编译二进制文件
-          compile_binaries() {
-              local prebuilt_path="$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin"
-              local targets=(aarch64 x86_64)
-              local targets1=(arm64-v8a x86_64)
-              local sources=(logmonitor)
-          
-              # 设置编译标志
-              export CFLAGS="-O3 -flto"
-              export CXXFLAGS="-O3 -flto -std=c++20"
-          
-              mkdir -p bin
-          
-              # 顺序编译
-              for source in "${sources[@]}"; do
-                  for target in "${targets[@]}"; do
-                      echo "Compiling $source for $target..."
-                      local output="bin/${source}-${action_id}-${target}"
-                      local cpp_file="src/$source.cpp"
-          
-                      if [ ! -f "$cpp_file" ]; then
-                          echo "Source file not found: $cpp_file"
-                          exit 1
-                      fi
-          
-                      "$prebuilt_path/${target}-linux-android21-clang++" \
-                          $CXXFLAGS -Wall -Wextra -static-libstdc++ \
-                          -I src -I src/ \
-                          -o "$output" "$cpp_file" || exit 1
-                  done
-              done
-          
-              cd src/filewatcher
-          
-              for target in "${targets1[@]}"; do
-                  if [ "$target" == "arm64-v8a" ]; then
-                      local output="../../../bin/filewatcher-${action_id}-aarch64"
-                  else
-                      local output="../../../bin/filewatcher-${action_id}-${target}"
-                  fi
-                  mkdir build && cd build
-                  cmake .. \
-                      -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_HOME/build/cmake/android.toolchain.cmake \
-                      -DANDROID_ABI=${target} \
-                      -DANDROID_PLATFORM=android-21
-                  make -j$(nproc)
-                  cp src/filewatcher $output
-                  cd .. && rm -rf build
-              done
-          
-              cd ../..
-          }
-          
-          compile_binaries
-          
-          # 自动 strip 所有生成的二进制文件
-          for binary in bin/*-aarch64 bin/*-x86_64; do
-              $ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip "$binary" || echo "Failed to strip $binary"
-          done
-          
-          # 清理文件
-          rm -rf src
-          rm -rf docs
-          rm build.sh
+      - name: Build release zip
+        env:
+          ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
+        run: ./gradlew module:zipRelease
 
-      - name: Compress files
+      - name: Resolve release metadata
+        id: metadata
         run: |
-          . ./module_settings/config.sh
-          7z a -r -mx9 "${action_name}_${LATEST_TAG}.zip" * -x!*.git* -x!*.zip
+          set -euo pipefail
+          zip_path=$(find module/build/outputs/release -maxdepth 1 -type f -name '*.zip' | head -n 1)
+          if [ -z "$zip_path" ]; then
+            echo "No release zip found" >&2
+            exit 1
+          fi
+
+          version_name=$(sed -n 's/^version=//p' module/build/outputs/module/release/module.prop | head -n 1)
+          version_code=$(sed -n 's/^versionCode=//p' module/build/outputs/module/release/module.prop | head -n 1)
+          zip_name=$(basename "$zip_path")
+          release_tag="$version_code"
+
+          if [ "${GITHUB_REF_TYPE:-}" = "tag" ] && [ -n "${GITHUB_REF_NAME:-}" ]; then
+            release_tag="${GITHUB_REF_NAME}"
+          fi
+
+          echo "zip_path=$zip_path" >> "$GITHUB_OUTPUT"
+          echo "zip_name=$zip_name" >> "$GITHUB_OUTPUT"
+          echo "version_name=$version_name" >> "$GITHUB_OUTPUT"
+          echo "version_code=$version_code" >> "$GITHUB_OUTPUT"
+          echo "release_tag=$release_tag" >> "$GITHUB_OUTPUT"
 
       - name: Create GitHub release
         uses: softprops/action-gh-release@v2
         with:
-          files: |
-            *.zip
+          tag_name: ${{ steps.metadata.outputs.release_tag }}
+          name: ${{ steps.metadata.outputs.version_name }}
+          files: ${{ steps.metadata.outputs.zip_path }}
 
-      - name: Update repository update.json
+      - name: Checkout main branch for update.json
         run: |
-          git fetch origin
-          git checkout main || git checkout -b main origin/main || git checkout -b main
-          . module_settings/config.sh  # 提前加载 config.sh 以获取变量
-          # 创建 update.json
-          cat > update.json << EOF
+          set -euo pipefail
+          git fetch origin main
+          git checkout -B main origin/main
+
+      - name: Generate update.json
+        run: |
+          set -euo pipefail
+          cat > update.json <<EOF
           {
-            "version": "${LATEST_TAG}",
-            "versionCode": "${CURRENT_TIME}",
-            "zipUrl": "https://github.com/${Github_update_repo}/releases/download/${LATEST_TAG}/${action_name}_${LATEST_TAG}.zip",
-            "changelog": "https://github.com/${Github_update_repo}/releases/tag/${LATEST_TAG}"
+            "version": "${{ steps.metadata.outputs.version_name }}",
+            "versionCode": "${{ steps.metadata.outputs.version_code }}",
+            "zipUrl": "https://github.com/${{ github.repository }}/releases/download/${{ steps.metadata.outputs.release_tag }}/${{ steps.metadata.outputs.zip_name }}",
+            "changelog": "https://github.com/${{ github.repository }}/releases/tag/${{ steps.metadata.outputs.release_tag }}"
           }
           EOF
-          git config --local user.email "github-actions[bot]@users.noreply.github.com"
-          git config --local user.name "github-actions[bot]"
+
+      - name: Commit update.json
+        run: |
+          set -euo pipefail
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git config user.name "github-actions[bot]"
           git add update.json
-          git commit -m "chore: update update.json for ${LATEST_TAG}" || echo "No changes to commit"
+          git diff --cached --quiet && exit 0
+          git commit -m "chore: update update.json for ${{ steps.metadata.outputs.release_tag }}"
           git push origin main
