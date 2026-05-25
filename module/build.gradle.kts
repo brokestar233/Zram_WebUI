@@ -516,7 +516,7 @@ listOf("debug", "release").forEach { variantName ->
                 }
             }
             
-            if (privateKeyFile.exists()) {
+            if (privateKeyFile.exists() && publicKeyFile.exists()) {
                 val privateKey = privateKeyFile.readBytes()
                 val publicKey = publicKeyFile.readBytes()
                 val namedSpec = NamedParameterSpec("ed25519")
@@ -629,7 +629,14 @@ listOf("debug", "release").forEach { variantName ->
 
                 mazokuSign()
             } else {
-                println("no private_key found, this build will not be signed")
+                when {
+                    !privateKeyFile.exists() && !publicKeyFile.exists() ->
+                        println("no signing keys found, this build will not be signed")
+                    !privateKeyFile.exists() ->
+                        println("no private_key found, this build will not be signed")
+                    else ->
+                        println("no public_key found, this build will not be signed")
+                }
 
                 File(moduleOutputDir, "machikado").createNewFile()
 

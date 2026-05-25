@@ -40,6 +40,27 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y autoconf automake libtool autopoint gettext pkg-config
 
+      - name: Restore signing keys
+        env:
+          MODULE_PRIVATE_KEY_BASE64: ${{ secrets.MODULE_PRIVATE_KEY_BASE64 }}
+          MODULE_PUBLIC_KEY_BASE64: ${{ secrets.MODULE_PUBLIC_KEY_BASE64 }}
+        run: |
+          set -euo pipefail
+
+          if [ -n "${MODULE_PRIVATE_KEY_BASE64:-}" ]; then
+            printf '%s' "$MODULE_PRIVATE_KEY_BASE64" | base64 --decode > module/private_key
+            chmod 600 module/private_key
+          fi
+
+          if [ -n "${MODULE_PUBLIC_KEY_BASE64:-}" ]; then
+            printf '%s' "$MODULE_PUBLIC_KEY_BASE64" | base64 --decode > module/public_key
+            chmod 600 module/public_key
+          fi
+
+          if [ -f module/private_key ] && [ ! -f module/public_key ]; then
+            echo "::warning::private_key restored but public_key is missing, build will fall back to unsigned output"
+          fi
+
       - name: Build release zip
         env:
           ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
