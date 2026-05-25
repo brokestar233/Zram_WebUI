@@ -429,7 +429,8 @@ listOf("debug", "release").forEach { variantName ->
             expand(
                 "moduleId" to "$moduleId",
                 "moduleName" to "$moduleName",
-                "versionName" to "$verName-$verType ($verCode-$commitHash-$variantLowered)",
+                // "versionName" to "$verName-$verType ($verCode-$commitHash-$variantLowered)",
+                "versionName" to "$verName ($verCode-$commitHash-$variantLowered)",
                 "versionCode" to "$verCode"
             )
         }
