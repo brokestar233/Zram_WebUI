@@ -35,6 +35,11 @@ jobs:
         with:
           ndk-version: r26d
 
+      - name: Install native build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y autoconf automake libtool autopoint gettext pkg-config
+
       - name: Build release zip
         env:
           ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
