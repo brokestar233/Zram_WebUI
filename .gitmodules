@@ -3,4 +3,4 @@
 	url = https://github.com/topjohnwu/libcxx
 [submodule "module/util-linux"]
 	path = module/util-linux
-	url = git@github.com:brokestar233/util-linux.git
+	url = https://github.com/brokestar233/util-linux.git
